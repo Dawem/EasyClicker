@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Easy Clicker",
+  "version": "1.0",
+  "description": "Auto-click an element based on a CSS selector and interval.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Easy Clicker",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "commands": {
+    "start-clicking": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Start clicking"
+    },
+    "stop-clicking": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "Stop clicking"
+    }
+  }
+}
