@@ -3,10 +3,7 @@
   "name": "Easy Clicker",
   "version": "1.0",
   "description": "Auto-click an element based on a CSS selector and interval.",
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
+  "permissions": ["storage", "activeTab"],
   "icons": {
     "48": "icon.png",
     "128": "icon.png"
@@ -28,6 +25,11 @@
       "js": ["content.js"]
     }
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "easyclicker@mdawe.com"
+    }
+  },
   "commands": {
     "start-clicking": {
       "suggested_key": {
