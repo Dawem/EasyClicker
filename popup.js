@@ -24,6 +24,10 @@ let defaultMatchPattern = '';
 let currentTabUrl = '';
 
 // Synchronizes filtering capability matching pattern testing natively in the frontend menu
+function escapeRegexHost(host) {
+  return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
+}
+
 function matchPatternToRegExp(pattern) {
   if (!pattern || pattern.trim() === '') return /.*/;
   if (pattern === '<all_urls>') {
@@ -40,7 +44,7 @@ function matchPatternToRegExp(pattern) {
   if (scheme === '*') {
     regex += '(http|https)://';
   } else {
-    regex += scheme + '://';
+    regex += escapeRegexHost(scheme) + '://';
   }
 
   let hostIndex = hostAndPath.indexOf('/');
@@ -53,16 +57,20 @@ function matchPatternToRegExp(pattern) {
   if (host === '*') {
     regex += '[^/]+';
   } else if (host.startsWith('*.')) {
-    const mainHost = host.substring(2).replace(/\./g, '\\.');
-    regex += `(?:[^/]+\\.)?${mainHost}`;
+    const mainHost = escapeRegexHost(host.substring(2));
+    regex += `(?:[^/]+\.)?${mainHost}`;
   } else {
-    regex += host.replace(/\./g, '\\.');
+    regex += escapeRegexHost(host);
   }
 
   regex += path.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/\\\*/g, '.*');
 
   regex += '$';
-  return new RegExp(regex);
+  try {
+    return new RegExp(regex);
+  } catch (e) {
+    return /$.^/;
+  }
 }
 
 function initTabContext() {

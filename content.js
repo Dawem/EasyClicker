@@ -180,6 +180,10 @@ function clickHandler(e) {
   });
 }
 
+function escapeRegexHost(host) {
+  return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
+}
+
 function matchPatternToRegExp(pattern) {
   if (pattern === '<all_urls>') {
     return /^(?:http|https|file|ftp):\/\/.*/;
@@ -187,7 +191,7 @@ function matchPatternToRegExp(pattern) {
 
   let regex = '^';
   let parts = pattern.split('://');
-  if (parts.length !== 2) return /$.^/; // Invalid pattern
+  if (parts.length !== 2) return /$.^/;
 
   let scheme = parts[0];
   let hostAndPath = parts[1];
@@ -195,7 +199,7 @@ function matchPatternToRegExp(pattern) {
   if (scheme === '*') {
     regex += '(http|https)://';
   } else {
-    regex += scheme + '://';
+    regex += escapeRegexHost(scheme) + '://';
   }
 
   let hostIndex = hostAndPath.indexOf('/');
@@ -208,26 +212,32 @@ function matchPatternToRegExp(pattern) {
   if (host === '*') {
     regex += '[^/]+';
   } else if (host.startsWith('*.')) {
-    // Allows exact domain OR subdomain
-    const mainHost = host.substring(2).replace(/\./g, '\\.');
-    regex += `(?:[^/]+\\.)?${mainHost}`;
+    const mainHost = escapeRegexHost(host.substring(2));
+    regex += `(?:[^/]+\.)?${mainHost}`;
   } else {
-    regex += host.replace(/\./g, '\\.');
+    regex += escapeRegexHost(host);
   }
 
-  // Escape special chars from path except *, convert * to .*
   regex += path.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/\\\*/g, '.*');
 
   regex += '$';
-  return new RegExp(regex);
+  try {
+    return new RegExp(regex);
+  } catch (e) {
+    return /$.^/;
+  }
 }
 
 function clickElement(item) {
   const finalSelector = item.type === 'any' ? item.selector : item.type + (item.selector || '');
   if (!finalSelector) return;
 
-  const elementsNodeList = document.querySelectorAll(finalSelector);
-  let elements = Array.from(elementsNodeList);
+  let elements;
+  try {
+    elements = Array.from(document.querySelectorAll(finalSelector));
+  } catch (e) {
+    return;
+  }
 
   if (item.targetText) {
     const searchTarget = item.targetText.toLowerCase().trim().replace(/\s+/g, ' ');

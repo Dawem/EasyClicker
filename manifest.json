@@ -16,6 +16,9 @@
     "default_title": "Easy Clicker",
     "default_icon": "icon.png"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "background": {
     "scripts": ["background.js"]
   },
