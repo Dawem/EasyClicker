@@ -475,6 +475,17 @@
   <div class="add-section" id="addSection" style="display: none;">
     <input type="hidden" id="editId">
 
+    <div class="field">
+      <label for="customName">
+        Custom Name (Optional)
+        <div class="tooltip-wrapper align-left">
+          <span class="tooltip-icon">?</span>
+          <div class="tooltip-text">A custom display name for this element in the list.</div>
+        </div>
+      </label>
+      <input type="text" id="customName" placeholder="e.g. Buy Button">
+    </div>
+
     <div class="flex-row">
       <div class="field">
         <label for="elementType">
@@ -545,7 +556,7 @@
       <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" autocomplete="off">
       <div id="selectorError" class="error">CSS Selector is required for "Any CSS Selector".</div>
     </div>
-
+    
     <div class="field">
       <label for="targetText">
         Target Text (Optional)

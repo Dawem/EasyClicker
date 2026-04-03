@@ -6,6 +6,7 @@ const elementTypeObj = document.getElementById('elementType');
 const matchTypeObj = document.getElementById('matchType');
 const selectorInput = document.getElementById('selector');
 const selectorError = document.getElementById('selectorError');
+const customNameInput = document.getElementById('customName');
 const targetTextInput = document.getElementById('targetText');
 const matchPatternInput = document.getElementById('matchPattern');
 const itemIntervalInput = document.getElementById('itemInterval');
@@ -124,6 +125,7 @@ function closeForm() {
   addUpdateBtn.textContent = 'Add Element';
   addUpdateBtn.classList.remove('edit-mode');
   selectorInput.value = '';
+  customNameInput.value = '';
   targetTextInput.value = '';
   matchPatternInput.value = defaultMatchPattern;
   itemIntervalInput.value = '';
@@ -141,6 +143,7 @@ pickBtn.addEventListener('click', () => {
     draftItem: {
       type: elementTypeObj.value,
       matchType: matchTypeObj.value,
+      customName: customNameInput.value,
       targetText: targetTextInput.value,
       matchPattern: matchPatternInput.value,
       interval: itemIntervalInput.value,
@@ -207,7 +210,7 @@ function createListItem(item) {
   selDiv.className = 'item-selector';
   let fullSel = item.type === 'any' ? item.selector : item.type + (item.selector || '');
 
-  selDiv.textContent = generateConciseTitle(item, fullSel);
+  selDiv.textContent = item.customName ? item.customName : generateConciseTitle(item, fullSel);
   selDiv.title = fullSel;
 
   const matchBadge = document.createElement('span');
@@ -248,6 +251,7 @@ function createListItem(item) {
     elementTypeObj.value = item.type || 'any';
     matchTypeObj.value = item.matchType || 'first';
     selectorInput.value = item.selector || '';
+    customNameInput.value = item.customName || '';
     targetTextInput.value = item.targetText || '';
     matchPatternInput.value = item.matchPattern || '';
     itemIntervalInput.value = item.interval || '';
@@ -293,6 +297,11 @@ function renderList() {
     }
   });
 
+  if (items.length === 0) {
+    elementList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; margin: auto;">No elements added yet.<br><br>Click "+ Add New Element" to get started.</div>`;
+    return;
+  }
+
   if (renderableItems.length === 0 && items.length > 0) {
     if (filterCurrent) {
       elementList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; margin: auto;">No elements match the current domain.</div>`;
@@ -326,6 +335,7 @@ addUpdateBtn.addEventListener('click', () => {
   const type = elementTypeObj.value;
   const match = matchTypeObj.value;
   const sel = selectorInput.value.trim();
+  const cname = customNameInput.value.trim();
   const txt = targetTextInput.value.trim();
   const pattern = matchPatternInput.value.trim();
   const spd = itemIntervalInput.value.trim();
@@ -343,6 +353,7 @@ addUpdateBtn.addEventListener('click', () => {
       item.type = type;
       item.matchType = match;
       item.selector = sel;
+      item.customName = cname;
       item.targetText = txt;
       item.matchPattern = pattern;
       item.interval = spd;
@@ -353,6 +364,7 @@ addUpdateBtn.addEventListener('click', () => {
       type: type,
       matchType: match,
       selector: sel,
+      customName: cname,
       targetText: txt,
       matchPattern: pattern,
       interval: spd,
@@ -429,6 +441,7 @@ browser.storage.local.get(['items', 'interval', 'isRunning', 'draftItem', 'picke
 
     if (res.draftItem) {
       matchTypeObj.value = res.draftItem.matchType || 'first';
+      customNameInput.value = res.draftItem.customName || '';
       targetTextInput.value = res.draftItem.targetText || '';
       matchPatternInput.value = res.draftItem.matchPattern || '';
       itemIntervalInput.value = res.draftItem.interval || '';
