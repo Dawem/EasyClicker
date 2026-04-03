@@ -1,3 +1,7 @@
+if (typeof browser === "undefined") {
+  globalThis.browser = chrome;
+}
+
 let itemIntervalIds = [];
 let isRunning = false;
 let isPicking = false;

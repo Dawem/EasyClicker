@@ -1,3 +1,7 @@
+if (typeof browser === "undefined") {
+  globalThis.browser = chrome;
+}
+
 const addSection = document.getElementById('addSection');
 const toggleFormBtn = document.getElementById('toggleFormBtn');
 const cancelFormBtn = document.getElementById('cancelFormBtn');

@@ -1,3 +1,7 @@
+if (typeof browser === "undefined") {
+  globalThis.browser = chrome;
+}
+
 function toggleClickerState(action) {
   browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
     if (tabs.length > 0) {

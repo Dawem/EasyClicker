@@ -17,7 +17,7 @@
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
