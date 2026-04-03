@@ -4,6 +4,63 @@ let isPicking = false;
 let highlightEl = null;
 let pickerOverlay = null;
 
+let highlightedClickables = [];
+
+function addClickableHighlights() {
+  if (!document.getElementById('ec-clickable-styles')) {
+    const style = document.createElement('style');
+    style.id = 'ec-clickable-styles';
+    style.textContent = `
+      .ec-clickable-element {
+        outline: 2px dashed #f59e0b !important;
+        outline-offset: -2px !important;
+        background-color: rgba(245, 158, 11, 0.2) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const allEls = document.querySelectorAll('*');
+  allEls.forEach(el => {
+    if (!(el instanceof HTMLElement)) return;
+    
+    let isClickable = false;
+    const tag = el.tagName.toLowerCase();
+    
+    if (tag === 'button' || tag === 'a' || tag === 'select') {
+      isClickable = true;
+    } else if (tag === 'input' && ['button', 'submit', 'checkbox', 'radio'].includes(el.type)) {
+      isClickable = true;
+    } else if (el.hasAttribute('onclick') || typeof el.onclick === 'function') {
+      isClickable = true;
+    } else if (el.hasAttribute('role') && ['button', 'link', 'menuitem', 'tab'].includes(el.getAttribute('role'))) {
+      isClickable = true;
+    } else {
+      const computed = window.getComputedStyle(el);
+      if (computed.cursor === 'pointer') {
+         isClickable = true;
+      }
+    }
+
+    if (isClickable) {
+      el.classList.add('ec-clickable-element');
+      highlightedClickables.push(el);
+    }
+  });
+}
+
+function removeClickableHighlights() {
+  highlightedClickables.forEach(el => {
+    try {
+      el.classList.remove('ec-clickable-element');
+    } catch(e) {}
+  });
+  highlightedClickables = [];
+  
+  const style = document.getElementById('ec-clickable-styles');
+  if (style) style.remove();
+}
+
 function cleanText(node) {
   const text = (node.innerText || node.textContent || '').trim().replace(/\s+/g, ' ');
   if (text.length > 0 && text.length < 60) return text;
@@ -122,6 +179,8 @@ function hoverHandler(e) {
   if (highlightEl && highlightEl !== e.target) {
     highlightEl.style.outline = highlightEl.dataset.oldOutline || '';
     highlightEl.style.backgroundColor = highlightEl.dataset.oldBg || '';
+    if (!highlightEl.dataset.oldOutline) highlightEl.style.removeProperty('outline');
+    if (!highlightEl.dataset.oldBg) highlightEl.style.removeProperty('background-color');
   }
 
   // Prevent infinite attribute mapping updates if lingering dynamically
@@ -130,8 +189,8 @@ function hoverHandler(e) {
     highlightEl.dataset.oldOutline = highlightEl.style.outline;
     highlightEl.dataset.oldBg = highlightEl.style.backgroundColor;
 
-    highlightEl.style.outline = '2px solid #ef4444';
-    highlightEl.style.backgroundColor = 'rgba(239, 68, 68, 0.2) !important';
+    highlightEl.style.setProperty('outline', '2px solid #ef4444', 'important');
+    highlightEl.style.setProperty('background-color', 'rgba(239, 68, 68, 0.2)', 'important');
   }
 
   if (pickerOverlay) {
@@ -148,8 +207,19 @@ function hoverHandler(e) {
     pickerOverlay.innerText = `<${tagName}${id}${classes}>${textPreview}`;
 
     // Lock position alongside mouse cursor padding safely globally
-    pickerOverlay.style.left = (e.clientX + 15) + 'px';
-    pickerOverlay.style.top = (e.clientY + 15) + 'px';
+    const rect = pickerOverlay.getBoundingClientRect();
+    let left = e.clientX + 15;
+    let top = e.clientY + 15;
+
+    if (left + rect.width > window.innerWidth) {
+      left = e.clientX - rect.width - 15;
+    }
+    if (top + rect.height > window.innerHeight) {
+      top = e.clientY - rect.height - 15;
+    }
+
+    pickerOverlay.style.left = Math.max(0, left) + 'px';
+    pickerOverlay.style.top = Math.max(0, top) + 'px';
   }
 }
 
@@ -172,6 +242,7 @@ function clickHandler(e) {
     pickerOverlay.parentNode.removeChild(pickerOverlay);
   }
   pickerOverlay = null;
+  removeClickableHighlights();
 
   const selectorData = getCssSelector(e.target);
   browser.storage.local.set({
@@ -335,6 +406,8 @@ function startPicker() {
     pickerOverlay.style.wordBreak = 'break-all';
     document.body.appendChild(pickerOverlay);
   }
+
+  addClickableHighlights();
 
   document.addEventListener('mouseover', hoverHandler, true);
   document.addEventListener('click', clickHandler, true);
