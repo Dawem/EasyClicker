@@ -280,6 +280,7 @@ function processItem(item) {
 function startClicker() {
   stopClicker();
   isRunning = true;
+  browser.storage.local.set({ startTime: Date.now() });
 
   browser.storage.local.get(['items', 'interval']).then((res) => {
     const items = res.items || [];

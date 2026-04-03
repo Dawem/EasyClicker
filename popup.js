@@ -24,6 +24,39 @@ let items = [];
 let defaultMatchPattern = '';
 let currentTabUrl = '';
 
+let rafId = null;
+let globalIsRunning = false;
+let globalInterval = 1.5;
+let globalStartTime = 0;
+
+function updateProgressBars() {
+  if (!globalIsRunning) return;
+  const now = Date.now();
+  const els = document.querySelectorAll('.element-item');
+  els.forEach((el) => {
+    const bar = el.querySelector('.progress-bar');
+    if (!bar) return;
+    const isEnabled = el.querySelector('.item-checkbox').checked;
+    if (!isEnabled) {
+      bar.style.width = '0%';
+      bar.classList.remove('fast-mode');
+      return;
+    }
+    const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+
+    if (itemIntervalMs < 100) {
+      if (!bar.classList.contains('fast-mode')) bar.classList.add('fast-mode');
+    } else {
+      if (bar.classList.contains('fast-mode')) bar.classList.remove('fast-mode');
+      const elapsed = now - globalStartTime;
+      if (elapsed < 0) return;
+      const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
+      bar.style.width = `${progress * 100}%`;
+    }
+  });
+  rafId = requestAnimationFrame(updateProgressBars);
+}
+
 // Synchronizes filtering capability matching pattern testing natively in the frontend menu
 function escapeRegexHost(host) {
   return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
@@ -280,6 +313,19 @@ function createListItem(item) {
   el.appendChild(info);
   el.appendChild(actions);
 
+  const pbContainer = document.createElement('div');
+  pbContainer.className = 'progress-bar-container';
+  const pb = document.createElement('div');
+  pb.className = 'progress-bar';
+  pbContainer.appendChild(pb);
+  el.appendChild(pbContainer);
+
+  const gIntMs = globalInterval * 1000;
+  const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
+    ? parseFloat(item.interval) * 1000
+    : gIntMs;
+  el.dataset.intervalMs = itemIntervalMs;
+
   return el;
 }
 
@@ -412,14 +458,38 @@ intervalInput.addEventListener('input', () => {
 });
 
 browser.storage.onChanged.addListener((changes) => {
+  if (changes.interval && changes.interval.newValue) {
+    globalInterval = parseFloat(changes.interval.newValue) || 1.5;
+    renderList();
+  }
+  if (changes.startTime && changes.startTime.newValue) {
+    globalStartTime = changes.startTime.newValue;
+  }
   if (changes.isRunning !== undefined) {
-    updateStatus(changes.isRunning.newValue);
+    globalIsRunning = changes.isRunning.newValue;
+    updateStatus(globalIsRunning);
+    if (globalIsRunning) {
+      if (changes.startTime) globalStartTime = changes.startTime.newValue;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateProgressBars);
+    } else {
+      cancelAnimationFrame(rafId);
+      document.querySelectorAll('.progress-bar').forEach(bar => bar.style.width = '0%');
+    }
   }
 });
 
-browser.storage.local.get(['items', 'interval', 'isRunning', 'draftItem', 'pickedSelector', 'pickedText']).then((res) => {
+browser.storage.local.get(['items', 'interval', 'isRunning', 'draftItem', 'pickedSelector', 'pickedText', 'startTime']).then((res) => {
   if (res.interval) {
     intervalInput.value = res.interval;
+    globalInterval = parseFloat(res.interval) || 1.5;
+  }
+
+  globalStartTime = res.startTime || Date.now();
+  globalIsRunning = res.isRunning || false;
+
+  if (globalIsRunning) {
+    rafId = requestAnimationFrame(updateProgressBars);
   }
 
   updateStatus(res.isRunning);

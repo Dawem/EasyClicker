@@ -320,6 +320,41 @@
       border-bottom: 1px solid var(--border-color);
       gap: 10px;
       flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent-primary);
+      width: 0%;
+    }
+
+    .progress-bar.fast-mode {
+      width: 100% !important;
+      background: linear-gradient(90deg, var(--accent-primary) 0%, #e71c4f 50%, var(--accent-primary) 100%);
+      background-size: 200% 100%;
+      animation: wave 1s linear infinite;
+    }
+
+    @keyframes wave {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: 0 0;
+      }
     }
 
     .element-item:last-child {
@@ -556,7 +591,7 @@
       <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" autocomplete="off">
       <div id="selectorError" class="error">CSS Selector is required for "Any CSS Selector".</div>
     </div>
-    
+
     <div class="field">
       <label for="targetText">
         Target Text (Optional)
