@@ -229,6 +229,7 @@ function hoverHandler(e) {
 
 function clickHandler(e) {
   if (!isPicking) return;
+  if (!e.isTrusted) return;
   e.preventDefault();
   e.stopPropagation();
 
