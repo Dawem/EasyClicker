@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Easy Clicker",
-  "version": "1.22",
+  "version": "1.23",
   "description": "Auto-click an element based on a CSS selector and interval.",
   "permissions": ["storage", "activeTab"],
   "icons": {

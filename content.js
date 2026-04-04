@@ -356,7 +356,6 @@ function processItem(item) {
 function startClicker() {
   stopClicker();
   isRunning = true;
-  browser.storage.local.set({ startTime: Date.now() });
 
   browser.storage.local.get(['items', 'interval']).then((res) => {
     const items = res.items || [];
@@ -382,8 +381,14 @@ function stopClicker() {
 }
 
 browser.storage.onChanged.addListener((changes) => {
-  // Restart execution safely if rules update mid-session
-  if (isRunning) {
+  if (changes.isRunning !== undefined) {
+    if (changes.isRunning.newValue) {
+      startClicker();
+    } else {
+      stopClicker();
+    }
+  } else if (isRunning) {
+    // Restart execution safely if rules update mid-session
     if (changes.items || changes.interval) {
       startClicker();
     }
@@ -419,11 +424,13 @@ function startPicker() {
 }
 
 browser.runtime.onMessage.addListener((message) => {
-  if (message.action === "start") {
-    startClicker();
-  } else if (message.action === "stop") {
-    stopClicker();
-  } else if (message.action === "startPicking") {
+  if (message.action === "startPicking") {
     startPicker();
+  }
+});
+
+browser.storage.local.get(['isRunning']).then((res) => {
+  if (res.isRunning) {
+    startClicker();
   }
 });

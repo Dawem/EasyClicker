@@ -3,12 +3,9 @@ if (typeof browser === "undefined") {
 }
 
 function toggleClickerState(action) {
-  browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-    if (tabs.length > 0) {
-      browser.tabs.sendMessage(tabs[0].id, { action }).catch(() => { });
-    }
-  });
-  browser.storage.local.set({ isRunning: action === 'start' });
+  const updates = { isRunning: action === 'start' };
+  if (action === 'start') updates.startTime = Date.now();
+  browser.storage.local.set(updates);
 }
 
 browser.commands.onCommand.addListener((command) => {
