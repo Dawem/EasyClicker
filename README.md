@@ -1,6 +1,10 @@
 # Easy Clicker
 
-A Firefox extension that automatically clicks one or more page elements on a configurable interval. Elements are identified by CSS selector, with optional text matching and URL pattern filtering.
+Firefox: https://addons.mozilla.org/en-CA/firefox/addon/easy-clicker/
+
+Chrome: (Pending Approval)
+
+A browser extension that automatically clicks one or more page elements on a configurable interval. Elements are identified by CSS selector, with optional text matching and URL pattern filtering.
 
 <img width="342" height="284" alt="Screenshot 2026-04-03 182442" src="https://github.com/user-attachments/assets/54051f14-e6e0-4c27-af42-284eb8232a2b" />
 <img width="342" height="466" alt="Screenshot 2026-04-03 182450" src="https://github.com/user-attachments/assets/34bdc0ef-ac0d-424f-8088-d7f6a7fec28e" /></br>
