@@ -10,8 +10,8 @@ A Firefox extension that automatically clicks one or more page elements on a con
 <img width="669" height="607" alt="image" src="https://github.com/user-attachments/assets/2cff4cda-0013-4417-9ad9-513eaa6cebfb" />
 
 ### How to use Element Picker
-1. Click the Element picker button <img width="112" height="29" alt="image" src="https://github.com/user-attachments/assets/dfb84976-e20f-44e7-852e-674005adc7b2" />
 
+1. Click the Element picker button <img width="112" height="29" alt="image" src="https://github.com/user-attachments/assets/dfb84976-e20f-44e7-852e-674005adc7b2" />
 
 2. The popup will close
 3. Clickable items will be highlighted in orange on the page
@@ -20,8 +20,6 @@ A Firefox extension that automatically clicks one or more page elements on a con
 6. The popup will reopen
 7. Modify any settings
 8. Click "Add Element" to save
-
-
 
 ## Features
 
@@ -39,3 +37,25 @@ A Firefox extension that automatically clicks one or more page elements on a con
 | ----------- | ------------------------------------------------------ |
 | `storage`   | Persists rules and settings locally                    |
 | `activeTab` | Sends messages to and reads the URL of the current tab |
+
+## Building the Extension
+
+This project includes a Python build script that generates both Chrome (`.crx`) and Firefox (`.xpi`) extensions.
+It automatically handles manifest differences between the browsers.
+
+### Requirements
+
+- Python 3.x
+
+### Build Steps
+
+1. Open a terminal or command prompt in the project root directory.
+2. Run the build script:
+   ```bash
+   python build.py
+   ```
+3. The compiled extensions will be placed in the `dist` folder:
+   - `dist/easy-clicker.xpi` (Firefox)
+   - `dist/easy-clicker.crx` (Chrome / Edge)
+
+This also generates folders in the dist folder with the source code specifically for each browser. These can be loaded as unpacked extensions in the respective browsers for development purposes.
