@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Easy Clicker",
-  "version": "1.23",
+  "version": "1.3",
   "description": "Auto-click an element based on a CSS selector and interval.",
   "permissions": ["storage", "activeTab"],
   "icons": {
@@ -37,8 +37,8 @@
   "commands": {
     "start-clicking": {
       "suggested_key": {
-        "default": "Alt+Shift+S",
-        "mac": "Alt+Shift+S"
+        "default": "Alt+Shift+Z",
+        "mac": "Alt+Shift+Z"
       },
       "description": "Start clicking"
     },

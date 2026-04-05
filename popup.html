@@ -663,10 +663,23 @@
       <input type="number" id="interval" min="0.1" step="0.1" placeholder="e.g. 1.5">
     </div>
 
+    <div class="field"
+      style="margin-bottom: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+      <button id="openOverlayBtn"
+        style="width: 100%; padding: 8px; background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px;">
+        Open Page Overlay
+        <div class="tooltip-wrapper align-right" style="margin-left: 0;">
+          <span class="tooltip-icon">?</span>
+          <div class="tooltip-text">Displays a floating panel on the webpage so you can toggle elements without opening
+            the popup.</div>
+        </div>
+      </button>
+    </div>
+
     <div class="main-controls">
       <button id="start">
         Start
-        <span class="shortcut">Alt+Shift+S</span>
+        <span class="shortcut">Alt+Shift+Z</span>
       </button>
       <button id="stop">
         Stop

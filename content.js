@@ -380,18 +380,442 @@ function stopClicker() {
   itemIntervalIds = [];
 }
 
+let currentOverlayItems = [];
+let isOverlayVisible = false;
+let pageOverlayEl = null;
+
+let globalInterval = 1.5;
+let globalStartTime = 0;
+let rafId = null;
+
+let overlayPosX = -1;
+let overlayPosY = -1;
+
+function generateConciseTitle(item, fullSel) {
+  if (item.targetText) {
+    return `Click "${item.targetText.substring(0, 20)}${item.targetText.length > 20 ? '...' : ''}"`;
+  }
+  let lastNode = fullSel;
+  if (lastNode.includes('>')) {
+    const parts = lastNode.split('>');
+    lastNode = parts[parts.length - 1].trim();
+  }
+  lastNode = lastNode.replace(/:nth-[a-z-]+\([0-9]+\)/g, '');
+
+  let tagExtracted = 'Element';
+  const tagMatch = lastNode.match(/^[a-zA-Z0-9_-]+/);
+  if (tagMatch) {
+    tagExtracted = tagMatch[0];
+    lastNode = lastNode.substring(tagExtracted.length);
+    tagExtracted = tagExtracted.charAt(0).toUpperCase() + tagExtracted.slice(1);
+  }
+
+  let conciseTitle = '';
+  if (lastNode.includes('#')) {
+    const idMatch = lastNode.match(/#[a-zA-Z0-9_-]+/);
+    if (idMatch) conciseTitle = `${tagExtracted} ${idMatch[0]}`;
+  } else if (lastNode.includes('.')) {
+    const classMatch = lastNode.match(/\.[a-zA-Z0-9_-]+/);
+    if (classMatch) conciseTitle = `${tagExtracted} ${classMatch[0]}`;
+  }
+
+  return 'Click ' + (conciseTitle || tagExtracted);
+}
+
+let isPinnedRight = false;
+let isPinnedBottom = false;
+
+function enforceOverlayBounds() {
+  if (!pageOverlayEl) return;
+  const rect = pageOverlayEl.getBoundingClientRect();
+  const SNAP_DIST = 20;
+
+  isPinnedRight = false;
+  isPinnedBottom = false;
+
+  if (overlayPosX < SNAP_DIST) {
+    overlayPosX = 0;
+  } else if (window.innerWidth - (overlayPosX + rect.width) < SNAP_DIST) {
+    overlayPosX = window.innerWidth - rect.width;
+    isPinnedRight = true;
+  }
+
+  if (overlayPosY < SNAP_DIST) {
+    overlayPosY = 0;
+  } else if (window.innerHeight - (overlayPosY + rect.height) < SNAP_DIST) {
+    overlayPosY = window.innerHeight - rect.height;
+    isPinnedBottom = true;
+  }
+
+  if (overlayPosX < 0) overlayPosX = 0;
+  if (overlayPosY < 0) overlayPosY = 0;
+  if (overlayPosX + rect.width > window.innerWidth) overlayPosX = window.innerWidth - rect.width;
+  if (overlayPosY + rect.height > window.innerHeight) overlayPosY = window.innerHeight - rect.height;
+
+  pageOverlayEl.style.left = overlayPosX + 'px';
+  pageOverlayEl.style.top = overlayPosY + 'px';
+  pageOverlayEl.style.right = 'auto';
+  pageOverlayEl.style.bottom = 'auto'; // Disable CSS lock
+}
+
+window.addEventListener('resize', () => {
+  if (isOverlayVisible && pageOverlayEl) {
+    const rect = pageOverlayEl.getBoundingClientRect();
+    if (isPinnedRight) overlayPosX = window.innerWidth - rect.width;
+    if (isPinnedBottom) overlayPosY = window.innerHeight - rect.height;
+    enforceOverlayBounds();
+  }
+});
+
+function updateProgressBars() {
+  if (!pageOverlayEl || !isRunning) return;
+  const now = Date.now();
+  const els = pageOverlayEl.querySelectorAll('.element-item');
+  els.forEach((el) => {
+    const bar = el.querySelector('.progress-bar');
+    if (!bar) return;
+    const isEnabled = el.querySelector('input[type="checkbox"]').checked;
+    if (!isEnabled) {
+      if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
+      bar.style.width = '0%';
+      return;
+    }
+    const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+
+    if (itemIntervalMs < 100) {
+      if (!bar.classList.contains('ec-fast-mode')) bar.classList.add('ec-fast-mode');
+    } else {
+      if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
+      const elapsed = now - globalStartTime;
+      if (elapsed < 0) return;
+      const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
+      bar.style.width = `${progress * 100}%`;
+    }
+  });
+  rafId = requestAnimationFrame(updateProgressBars);
+}
+
+function initDrag(headerEl, containerEl) {
+  let isDragging = false;
+  let startX, startY;
+
+  headerEl.addEventListener('mousedown', (e) => {
+    if (e.target.tagName.toLowerCase() === 'div' && e.target.innerText === '×') return;
+    isDragging = true;
+    startX = e.clientX - overlayPosX;
+    startY = e.clientY - overlayPosY;
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    overlayPosX = e.clientX - startX;
+    overlayPosY = e.clientY - startY;
+    containerEl.style.left = overlayPosX + 'px';
+    containerEl.style.top = overlayPosY + 'px';
+    containerEl.style.right = 'auto';
+    containerEl.style.bottom = 'auto';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      enforceOverlayBounds();
+    }
+  });
+}
+
+function updatePageOverlay() {
+  if (!isOverlayVisible) {
+    if (pageOverlayEl) {
+      pageOverlayEl.remove();
+      pageOverlayEl = null;
+    }
+    if (rafId) cancelAnimationFrame(rafId);
+    return;
+  }
+
+  if (!pageOverlayEl) {
+    if (!document.getElementById('ec-overlay-styles')) {
+      const style = document.createElement('style');
+      style.id = 'ec-overlay-styles';
+      style.textContent = `
+        .ec-fast-mode {
+          width: 100% !important;
+          background: linear-gradient(90deg, #3b82f6 0%, #e71c4f 50%, #3b82f6 100%) !important;
+          background-size: 200% 100% !important;
+          animation: ec-wave 1s linear infinite !important;
+        }
+        @keyframes ec-wave {
+          0% { background-position: 200% 0; }
+          100% { background-position: 0 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    pageOverlayEl = document.createElement('div');
+    pageOverlayEl.id = 'ec-page-overlay';
+    
+    if (overlayPosX === -1 || overlayPosY === -1) {
+      // Default to top-right
+      overlayPosX = window.innerWidth - 300 - 20; // 280w + 20 padding
+      overlayPosY = 20;
+    }
+
+    Object.assign(pageOverlayEl.style, {
+      position: 'fixed', left: overlayPosX + 'px', top: overlayPosY + 'px', zIndex: '2147483647',
+      backgroundColor: '#1e293b', color: '#f8fafc', padding: '12px',
+      borderRadius: '8px', fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: '13px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.5)', border: '1px solid #334155',
+      width: '280px', maxHeight: '400px', display: 'flex', flexDirection: 'column',
+      gap: '12px'
+    });
+    document.body.appendChild(pageOverlayEl);
+    enforceOverlayBounds();
+  }
+
+  pageOverlayEl.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.cursor = 'grab';
+  header.style.paddingBottom = '4px';
+  header.style.borderBottom = '1px solid #334155';
+  header.onmousedown = () => header.style.cursor = 'grabbing';
+  header.onmouseup = () => header.style.cursor = 'grab';
+  
+  initDrag(header, pageOverlayEl);
+
+  const title = document.createElement('div');
+  title.style.fontWeight = '700';
+  title.style.fontSize = '14px';
+  title.innerText = 'Easy Clicker';
+  
+  const headerRight = document.createElement('div');
+  headerRight.style.display = 'flex';
+  headerRight.style.alignItems = 'center';
+  headerRight.style.gap = '12px';
+
+  const statusBadge = document.createElement('div');
+  statusBadge.style.fontSize = '9px';
+  statusBadge.style.padding = '2px 6px';
+  statusBadge.style.borderRadius = '4px';
+  statusBadge.style.border = '1px solid';
+  statusBadge.style.fontWeight = '700';
+  if (isRunning) {
+    statusBadge.innerText = 'RUNNING';
+    statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+    statusBadge.style.color = '#10b981';
+    statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+  } else {
+    statusBadge.innerText = 'IDLE';
+    statusBadge.style.background = '#0f172a';
+    statusBadge.style.color = '#94a3b8';
+    statusBadge.style.borderColor = '#334155';
+  }
+
+  const closeBtnWrap = document.createElement('div');
+  Object.assign(closeBtnWrap.style, {
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    borderRadius: '4px', backgroundColor: 'transparent', width: '18px', height: '18px'
+  });
+  closeBtnWrap.onmouseover = () => closeBtnWrap.style.backgroundColor = 'rgba(255,255,255,0.1)';
+  closeBtnWrap.onmouseout = () => closeBtnWrap.style.backgroundColor = 'transparent';
+  
+  const closeBtn = document.createElement('div');
+  closeBtn.innerText = '×';
+  Object.assign(closeBtn.style, {
+    fontSize: '20px', lineHeight: '1', color: '#94a3b8', fontWeight: 'bold', paddingBottom: '2px'
+  });
+  closeBtnWrap.onclick = () => {
+    browser.storage.local.get(['overlayDomains']).then((res) => {
+      const domains = res.overlayDomains || {};
+      domains[window.location.hostname] = false;
+      browser.storage.local.set({ overlayDomains: domains });
+    });
+  };
+  closeBtnWrap.appendChild(closeBtn);
+
+  headerRight.appendChild(statusBadge);
+  headerRight.appendChild(closeBtnWrap);
+
+  header.appendChild(title);
+  header.appendChild(headerRight);
+  pageOverlayEl.appendChild(header);
+
+  const listContainer = document.createElement('div');
+  listContainer.style.flex = '1';
+  listContainer.style.overflowY = 'auto';
+  listContainer.style.display = 'flex';
+  listContainer.style.flexDirection = 'column';
+  listContainer.style.gap = '8px';
+  listContainer.style.maxHeight = '250px';
+  listContainer.style.border = '1px solid #334155';
+  listContainer.style.borderRadius = '6px';
+  listContainer.style.padding = '8px';
+  listContainer.style.background = '#0f172a';
+  
+  listContainer.style.scrollbarWidth = 'thin';
+  listContainer.style.scrollbarColor = '#334155 transparent';
+
+  const filteredOverlayItems = currentOverlayItems.filter(item => canProcessItem(item));
+
+  if (filteredOverlayItems.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.innerText = currentOverlayItems.length > 0 ? 'No matching elements on this page' : 'No elements added';
+    emptyMsg.style.color = '#94a3b8';
+    emptyMsg.style.textAlign = 'center';
+    emptyMsg.style.padding = '10px 0';
+    emptyMsg.style.fontSize = '11px';
+    listContainer.appendChild(emptyMsg);
+  } else {
+    filteredOverlayItems.forEach(item => {
+      const itemRow = document.createElement('div');
+      itemRow.className = 'element-item';
+      itemRow.style.position = 'relative';
+      itemRow.style.display = 'flex';
+      itemRow.style.flexDirection = 'column';
+      itemRow.style.paddingBottom = '4px';
+      
+      const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
+        ? parseFloat(item.interval) * 1000
+        : globalInterval * 1000;
+      itemRow.dataset.intervalMs = itemIntervalMs;
+      
+      const elSection = document.createElement('div');
+      elSection.style.display = 'flex';
+      elSection.style.alignItems = 'center';
+      elSection.style.gap = '8px';
+      
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = item.enabled;
+      cb.style.cursor = 'pointer';
+      cb.style.width = '14px';
+      cb.style.height = '14px';
+      cb.style.margin = '0';
+      cb.style.flexShrink = '0';
+      cb.addEventListener('change', () => {
+        item.enabled = cb.checked;
+        browser.storage.local.set({ items: currentOverlayItems });
+      });
+
+      const name = document.createElement('div');
+      name.style.flex = '1';
+      name.style.overflow = 'hidden';
+      name.style.textOverflow = 'ellipsis';
+      name.style.whiteSpace = 'nowrap';
+      name.style.fontSize = '12px';
+      let fullSel = item.type === 'any' ? item.selector : item.type + (item.selector || '');
+      name.innerText = item.customName ? item.customName : generateConciseTitle(item, fullSel);
+      name.title = fullSel;
+
+      elSection.appendChild(cb);
+      elSection.appendChild(name);
+      itemRow.appendChild(elSection);
+      
+      const pbContainer = document.createElement('div');
+      Object.assign(pbContainer.style, {
+        position: 'absolute', bottom: '0', left: '0', width: '100%', height: '2px', background: 'transparent'
+      });
+      const pb = document.createElement('div');
+      pb.className = 'progress-bar';
+      Object.assign(pb.style, {
+        height: '100%', background: '#3b82f6', width: '0%', transition: 'none'
+      });
+      pbContainer.appendChild(pb);
+      itemRow.appendChild(pbContainer);
+
+      listContainer.appendChild(itemRow);
+    });
+  }
+
+  pageOverlayEl.appendChild(listContainer);
+
+  const controls = document.createElement('div');
+  controls.style.display = 'flex';
+  controls.style.gap = '8px';
+
+  const startBtn = document.createElement('button');
+  startBtn.innerText = 'Start';
+  Object.assign(startBtn.style, {
+    flex: '1', padding: '8px', border: 'none', borderRadius: '4px',
+    backgroundColor: '#3b82f6', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '13px'
+  });
+  if (isRunning) {
+    startBtn.style.opacity = '0.5';
+    startBtn.style.pointerEvents = 'none';
+  } else {
+    startBtn.onmouseover = () => startBtn.style.backgroundColor = '#2563eb';
+    startBtn.onmouseout = () => startBtn.style.backgroundColor = '#3b82f6';
+  }
+  startBtn.onclick = () => browser.runtime.sendMessage({ action: 'start' });
+
+  const stopBtn = document.createElement('button');
+  stopBtn.innerText = 'Stop';
+  Object.assign(stopBtn.style, {
+    flex: '1', padding: '8px', border: 'none', borderRadius: '4px',
+    backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '13px'
+  });
+  if (!isRunning) {
+    stopBtn.style.opacity = '0.5';
+    stopBtn.style.pointerEvents = 'none';
+  } else {
+    stopBtn.onmouseover = () => stopBtn.style.backgroundColor = '#dc2626';
+    stopBtn.onmouseout = () => stopBtn.style.backgroundColor = '#ef4444';
+  }
+  stopBtn.onclick = () => browser.runtime.sendMessage({ action: 'stop' });
+
+  controls.appendChild(startBtn);
+  controls.appendChild(stopBtn);
+  pageOverlayEl.appendChild(controls);
+
+  if (isRunning) {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(updateProgressBars);
+  }
+}
+
 browser.storage.onChanged.addListener((changes) => {
+  let needsOverlayUpdate = false;
+
+  if (changes.interval && changes.interval.newValue) {
+    globalInterval = parseFloat(changes.interval.newValue) || 1.5;
+  }
+  if (changes.startTime && changes.startTime.newValue) {
+    globalStartTime = changes.startTime.newValue;
+  }
+
+  if (changes.items) {
+    currentOverlayItems = changes.items.newValue || [];
+    needsOverlayUpdate = true;
+  }
+
+  if (changes.overlayDomains) {
+    const domains = changes.overlayDomains.newValue || {};
+    isOverlayVisible = domains[window.location.hostname] === true;
+    needsOverlayUpdate = true;
+  }
+
   if (changes.isRunning !== undefined) {
     if (changes.isRunning.newValue) {
       startClicker();
     } else {
       stopClicker();
     }
+    needsOverlayUpdate = true;
   } else if (isRunning) {
-    // Restart execution safely if rules update mid-session
     if (changes.items || changes.interval) {
       startClicker();
     }
+  }
+
+  if (needsOverlayUpdate) {
+    updatePageOverlay();
   }
 });
 
@@ -429,8 +853,16 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 
-browser.storage.local.get(['isRunning']).then((res) => {
+browser.storage.local.get(['isRunning', 'items', 'overlayDomains', 'interval', 'startTime']).then((res) => {
+  currentOverlayItems = res.items || [];
+  const domains = res.overlayDomains || {};
+  isOverlayVisible = domains[window.location.hostname] === true;
+  if (res.interval) globalInterval = parseFloat(res.interval) || 1.5;
+  globalStartTime = res.startTime || Date.now();
+
   if (res.isRunning) {
     startClicker();
   }
+  
+  updatePageOverlay();
 });

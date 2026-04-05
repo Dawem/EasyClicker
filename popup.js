@@ -21,6 +21,7 @@ const elementList = document.getElementById('elementList');
 const filterDomainCheckbox = document.getElementById('filterDomain');
 const startBtn = document.getElementById('start');
 const stopBtn = document.getElementById('stop');
+const openOverlayBtn = document.getElementById('openOverlayBtn');
 
 const pickBtn = document.getElementById('pickBtn');
 
@@ -459,6 +460,21 @@ filterDomainCheckbox.addEventListener('change', () => {
 
 intervalInput.addEventListener('input', () => {
   browser.storage.local.set({ interval: intervalInput.value });
+});
+
+openOverlayBtn.addEventListener('click', () => {
+  try {
+    const url = new URL(currentTabUrl);
+    browser.storage.local.get(['overlayDomains']).then((res) => {
+      const domains = res.overlayDomains || {};
+      domains[url.hostname] = true;
+      browser.storage.local.set({ overlayDomains: domains }).then(() => {
+        window.close();
+      });
+    });
+  } catch (e) {
+    window.close();
+  }
 });
 
 browser.storage.onChanged.addListener((changes) => {
