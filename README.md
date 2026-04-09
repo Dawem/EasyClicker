@@ -2,7 +2,7 @@
 
 Firefox: https://addons.mozilla.org/en-CA/firefox/addon/easy-clicker/
 
-Chrome: https://chromewebstore.google.com/detail/easy-clicker/edmpihaieopokiphjakadgdofgfpejof?authuser=0&hl=en-US
+Chrome: https://chromewebstore.google.com/detail/easy-clicker/edmpihaieopokiphjakadgdofgfpejof
 
 A browser extension that automatically clicks one or more page elements on a configurable interval. Elements are identified by CSS selector, with optional text matching and URL pattern filtering.
 
