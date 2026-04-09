@@ -1,4 +1,4 @@
-a# Easy Clicker
+# Easy Clicker
 
 Firefox: https://addons.mozilla.org/en-CA/firefox/addon/easy-clicker/
 
