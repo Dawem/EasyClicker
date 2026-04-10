@@ -64,6 +64,7 @@ def build_chrome():
     
     executable = next((p for p in chrome_paths if os.path.exists(p)), None)
     crx_path = os.path.join(DIST_DIR, "easy-clicker.crx")
+    zip_path = os.path.join(DIST_DIR, "easy-clicker-chrome.zip")
     
     if executable:
         print(f"Found Chrome/Edge at {executable}. Packing CRX...")
@@ -73,9 +74,10 @@ def build_chrome():
         generated_crx = os.path.abspath(os.path.join(DIST_DIR, "chrome.crx"))
         if os.path.exists(generated_crx):
             os.rename(generated_crx, crx_path)
+        package_zip(CHROME_DIR, zip_path)
     else:
-        print("Warning: Google Chrome not found for compiling CRX. Generating zip and renaming to .crx instead.")
-        package_zip(CHROME_DIR, crx_path)
+        print("Warning: Google Chrome not found for compiling CRX. Generating only zip instead.")
+        package_zip(CHROME_DIR, zip_path)
 
 def build_firefox():
     print("Building Firefox extension...")

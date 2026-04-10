@@ -353,31 +353,91 @@ function processItem(item) {
   }
 }
 
+let sequenceStopFlag = false;
+let currentSequenceTimer = null;
+let currentSequenceResolve = null;
+let sequenceId = 0;
+
+let currentRunMode = 'sequence';
+let activeSequenceItemId = null;
+let activeSequenceItemStart = 0;
+
 function startClicker() {
   stopClicker();
   isRunning = true;
+  sequenceStopFlag = false;
+  sequenceId++;
+  const mySequenceId = sequenceId;
 
-  browser.storage.local.get(['items', 'interval']).then((res) => {
+  browser.storage.local.get(['items', 'interval', 'runMode']).then(async (res) => {
+    if (mySequenceId !== sequenceId) return;
+
     const items = res.items || [];
     const globalIntervalMs = (parseFloat(res.interval) || 1.5) * 1000;
+    const runMode = res.runMode || 'sequence';
+    currentRunMode = runMode;
 
-    items.forEach(item => {
-      if (item.enabled) {
-        const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
-          ? parseFloat(item.interval) * 1000
-          : globalIntervalMs;
+    if (runMode === 'parallel') {
+      items.forEach(item => {
+        if (item.enabled) {
+          const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
+            ? parseFloat(item.interval) * 1000
+            : globalIntervalMs;
 
-        const id = setInterval(() => processItem(item), itemIntervalMs);
-        itemIntervalIds.push(id);
+          const id = setInterval(() => processItem(item), itemIntervalMs);
+          itemIntervalIds.push(id);
+        }
+      });
+    } else {
+      // Sequence Mode
+      while (isRunning && !sequenceStopFlag && mySequenceId === sequenceId) {
+        let processedAny = false;
+        for (let i = 0; i < items.length; i++) {
+          if (!isRunning || sequenceStopFlag || mySequenceId !== sequenceId) break;
+          const item = items[i];
+          if (item.enabled && canProcessItem(item)) {
+            clickElement(item);
+            processedAny = true;
+            const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
+              ? parseFloat(item.interval) * 1000
+              : globalIntervalMs;
+            
+            browser.storage.local.set({ activeSequenceItemId: item.id, activeSequenceItemStart: Date.now() });
+
+            await new Promise(resolve => {
+              currentSequenceResolve = resolve;
+              currentSequenceTimer = setTimeout(resolve, itemIntervalMs);
+            });
+            if (currentSequenceResolve) currentSequenceResolve = null;
+          }
+        }
+        if (!processedAny) {
+           await new Promise(resolve => {
+              currentSequenceResolve = resolve;
+              currentSequenceTimer = setTimeout(resolve, 1000);
+           });
+           if (currentSequenceResolve) currentSequenceResolve = null;
+        }
       }
-    });
+    }
   });
 }
 
 function stopClicker() {
   isRunning = false;
+  sequenceStopFlag = true;
+  sequenceId++;
+  if (currentSequenceTimer) {
+    clearTimeout(currentSequenceTimer);
+    currentSequenceTimer = null;
+  }
+  if (currentSequenceResolve) {
+    currentSequenceResolve();
+    currentSequenceResolve = null;
+  }
   itemIntervalIds.forEach(id => clearInterval(id));
   itemIntervalIds = [];
+  browser.storage.local.set({ activeSequenceItemId: null });
 }
 
 let currentOverlayItems = [];
@@ -475,21 +535,36 @@ function updateProgressBars() {
     const bar = el.querySelector('.progress-bar');
     if (!bar) return;
     const isEnabled = el.querySelector('input[type="checkbox"]').checked;
+    
     if (!isEnabled) {
       if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
       bar.style.width = '0%';
       return;
     }
-    const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
 
-    if (itemIntervalMs < 100) {
-      if (!bar.classList.contains('ec-fast-mode')) bar.classList.add('ec-fast-mode');
+    if (currentRunMode === 'sequence') {
+      const itemId = el.dataset.itemId;
+      if (itemId === activeSequenceItemId) {
+        const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+        const elapsed = now - activeSequenceItemStart;
+        const progress = Math.min(1, Math.max(0, elapsed / itemIntervalMs));
+        bar.style.width = `${progress * 100}%`;
+        bar.style.opacity = '1';
+        if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
+      } else {
+        bar.style.width = '0%';
+      }
     } else {
-      if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
-      const elapsed = now - globalStartTime;
-      if (elapsed < 0) return;
-      const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
-      bar.style.width = `${progress * 100}%`;
+      const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+      if (itemIntervalMs < 100) {
+        if (!bar.classList.contains('ec-fast-mode')) bar.classList.add('ec-fast-mode');
+      } else {
+        if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
+        const elapsed = now - globalStartTime;
+        if (elapsed < 0) return;
+        const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
+        bar.style.width = `${progress * 100}%`;
+      }
     }
   });
   rafId = requestAnimationFrame(updateProgressBars);
@@ -593,30 +668,8 @@ function updatePageOverlay() {
   const title = document.createElement('div');
   title.style.fontWeight = '700';
   title.style.fontSize = '14px';
+  title.style.lineHeight = '1';
   title.innerText = 'Easy Clicker';
-  
-  const headerRight = document.createElement('div');
-  headerRight.style.display = 'flex';
-  headerRight.style.alignItems = 'center';
-  headerRight.style.gap = '12px';
-
-  const statusBadge = document.createElement('div');
-  statusBadge.style.fontSize = '9px';
-  statusBadge.style.padding = '2px 6px';
-  statusBadge.style.borderRadius = '4px';
-  statusBadge.style.border = '1px solid';
-  statusBadge.style.fontWeight = '700';
-  if (isRunning) {
-    statusBadge.innerText = 'RUNNING';
-    statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-    statusBadge.style.color = '#10b981';
-    statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-  } else {
-    statusBadge.innerText = 'IDLE';
-    statusBadge.style.background = '#0f172a';
-    statusBadge.style.color = '#94a3b8';
-    statusBadge.style.borderColor = '#334155';
-  }
 
   const closeBtnWrap = document.createElement('div');
   Object.assign(closeBtnWrap.style, {
@@ -640,11 +693,8 @@ function updatePageOverlay() {
   };
   closeBtnWrap.appendChild(closeBtn);
 
-  headerRight.appendChild(statusBadge);
-  headerRight.appendChild(closeBtnWrap);
-
   header.appendChild(title);
-  header.appendChild(headerRight);
+  header.appendChild(closeBtnWrap);
   pageOverlayEl.appendChild(header);
 
   const listContainer = document.createElement('div');
@@ -685,6 +735,7 @@ function updatePageOverlay() {
         ? parseFloat(item.interval) * 1000
         : globalInterval * 1000;
       itemRow.dataset.intervalMs = itemIntervalMs;
+      itemRow.dataset.itemId = item.id;
       
       const elSection = document.createElement('div');
       elSection.style.display = 'flex';
@@ -736,47 +787,40 @@ function updatePageOverlay() {
 
   pageOverlayEl.appendChild(listContainer);
 
+
   const controls = document.createElement('div');
   controls.style.display = 'flex';
   controls.style.gap = '8px';
 
-  const startBtn = document.createElement('button');
-  startBtn.innerText = 'Start';
-  Object.assign(startBtn.style, {
-    flex: '1', padding: '8px', border: 'none', borderRadius: '4px',
-    backgroundColor: '#3b82f6', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '13px'
+  const toggleBtn = document.createElement('button');
+  toggleBtn.innerText = isRunning ? 'Stop' : 'Start';
+  Object.assign(toggleBtn.style, {
+    width: '100%', flex: '1', padding: '8px', border: 'none', borderRadius: '4px',
+    color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+    backgroundColor: isRunning ? '#ef4444' : '#3b82f6',
+    transition: 'all 0.2s'
   });
-  if (isRunning) {
-    startBtn.style.opacity = '0.5';
-    startBtn.style.pointerEvents = 'none';
-  } else {
-    startBtn.onmouseover = () => startBtn.style.backgroundColor = '#2563eb';
-    startBtn.onmouseout = () => startBtn.style.backgroundColor = '#3b82f6';
-  }
-  startBtn.onclick = () => browser.runtime.sendMessage({ action: 'start' });
-
-  const stopBtn = document.createElement('button');
-  stopBtn.innerText = 'Stop';
-  Object.assign(stopBtn.style, {
-    flex: '1', padding: '8px', border: 'none', borderRadius: '4px',
-    backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '13px'
-  });
-  if (!isRunning) {
-    stopBtn.style.opacity = '0.5';
-    stopBtn.style.pointerEvents = 'none';
-  } else {
-    stopBtn.onmouseover = () => stopBtn.style.backgroundColor = '#dc2626';
-    stopBtn.onmouseout = () => stopBtn.style.backgroundColor = '#ef4444';
-  }
-  stopBtn.onclick = () => browser.runtime.sendMessage({ action: 'stop' });
-
-  controls.appendChild(startBtn);
-  controls.appendChild(stopBtn);
+  
+  toggleBtn.onmouseover = () => toggleBtn.style.backgroundColor = isRunning ? '#dc2626' : '#2563eb';
+  toggleBtn.onmouseout = () => toggleBtn.style.backgroundColor = isRunning ? '#ef4444' : '#3b82f6';
+  
+  toggleBtn.onclick = () => {
+    browser.runtime.sendMessage({ action: isRunning ? 'stop' : 'start' });
+  };
+  
+  controls.appendChild(toggleBtn);
   pageOverlayEl.appendChild(controls);
 
   if (isRunning) {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(updateProgressBars);
+  }
+
+  if (pageOverlayEl) {
+    const rect = pageOverlayEl.getBoundingClientRect();
+    if (isPinnedRight) overlayPosX = window.innerWidth - rect.width;
+    if (isPinnedBottom) overlayPosY = window.innerHeight - rect.height;
+    enforceOverlayBounds();
   }
 }
 
@@ -788,6 +832,16 @@ browser.storage.onChanged.addListener((changes) => {
   }
   if (changes.startTime && changes.startTime.newValue) {
     globalStartTime = changes.startTime.newValue;
+  }
+  
+  if (changes.runMode && changes.runMode.newValue) {
+    currentRunMode = changes.runMode.newValue;
+  }
+  if (changes.activeSequenceItemId) {
+    activeSequenceItemId = changes.activeSequenceItemId.newValue;
+  }
+  if (changes.activeSequenceItemStart) {
+    activeSequenceItemStart = changes.activeSequenceItemStart.newValue;
   }
 
   if (changes.items) {
@@ -809,7 +863,7 @@ browser.storage.onChanged.addListener((changes) => {
     }
     needsOverlayUpdate = true;
   } else if (isRunning) {
-    if (changes.items || changes.interval) {
+    if (changes.items || changes.interval || changes.runMode) {
       startClicker();
     }
   }
@@ -853,15 +907,31 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 
-browser.storage.local.get(['isRunning', 'items', 'overlayDomains', 'interval', 'startTime']).then((res) => {
+browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 'interval', 'startTime', 'runMode', 'activeSequenceItemId', 'activeSequenceItemStart']).then((res) => {
   currentOverlayItems = res.items || [];
   const domains = res.overlayDomains || {};
   isOverlayVisible = domains[window.location.hostname] === true;
   if (res.interval) globalInterval = parseFloat(res.interval) || 1.5;
   globalStartTime = res.startTime || Date.now();
+  currentRunMode = res.runMode || 'sequence';
+  activeSequenceItemId = res.activeSequenceItemId || null;
+  activeSequenceItemStart = res.activeSequenceItemStart || 0;
 
-  if (res.isRunning) {
-    startClicker();
+  if (res.autoStart) {
+    const activeItems = currentOverlayItems.filter(item => item.enabled && canProcessItem(item));
+    if (activeItems.length > 0) {
+      if (!res.isRunning) {
+        browser.storage.local.set({ isRunning: true, startTime: Date.now() });
+      } else {
+        startClicker();
+      }
+    } else {
+      if (res.isRunning) startClicker();
+    }
+  } else {
+    if (res.isRunning) {
+      browser.storage.local.set({ isRunning: false });
+    }
   }
   
   updatePageOverlay();

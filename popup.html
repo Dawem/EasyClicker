@@ -39,6 +39,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: relative;
+      z-index: 1;
     }
 
     .header h1 {
@@ -491,6 +493,12 @@
       flex: 1;
       min-width: 0;
     }
+
+    #mainView,
+    #settingsView {
+      position: relative;
+      z-index: 10;
+    }
   </style>
 </head>
 
@@ -498,193 +506,315 @@
   <div class="header">
     <div style="display: flex; align-items: center; gap: 8px;">
       <h1>Easy Clicker</h1>
-      <span id="statusBadge"
-        style="font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--surface-color); color: var(--text-muted); border: 1px solid var(--border-color); text-transform: uppercase; transition: all 0.2s;">IDLE</span>
     </div>
-    <button id="toggleFormBtn" class="icon-btn primary"
-      style="font-size: 11px; gap: 4px; align-items: center; padding: 6px 10px; font-weight: 600; border: 1px solid var(--border-color); background: var(--surface-color);">
-      + Add New Element
+    <div style="display:flex; gap:6px; align-items: center;">
+      <button id="toggleFormBtn" class="icon-btn primary"
+        style="height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; gap: 4px; padding: 0 10px; font-weight: 600; border: 1px solid var(--border-color); background: var(--surface-color);">
+        + Add Element
+      </button>
+      <button id="settingsBtn" class="icon-btn" title="Settings"
+        style="height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); background: var(--surface-color); padding: 0 8px; font-size: 14px;">⚙️</button>
+      <a href="https://github.com/Dawem/EasyClicker" target="_blank" title="View Source on GitHub"
+        onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'"
+        style="display: flex; align-items: center; justify-content: center; padding: 4px; color: var(--text-muted); text-decoration: none; transition: all 0.2s;">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+          </path>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <div id="settingsView" style="display: none; flex-direction: column; flex: 1; padding: 2px 0 0 0; gap: 12px;">
+
+    <div
+      style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+      <div
+        style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+        ⚙️ Execution
+      </div>
+
+      <div class="field" style="margin-bottom: 12px;">
+        <label for="interval" style="margin-bottom: 6px; font-size: 12px;">
+          Global Wait Time (s)
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">Default delay or interval used when clicking elements.</div>
+          </div>
+        </label>
+        <input type="number" id="interval" min="0.1" step="0.1" placeholder="e.g. 1.5"
+          style="width: 100%; box-sizing: border-box; height: 30px;">
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed var(--border-color); padding: 12px 0;">
+        <input type="checkbox" id="autoStart"
+          style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0;">
+        <label for="autoStart"
+          style="margin: 0; font-weight: 500; cursor: pointer; font-size: 12px; color: var(--text-main); display: inline-flex; align-items: center; justify-content: space-between; flex: 1;">
+          Auto-start on page load
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the clicker automatically runs when a page
+              matching active items loads.</div>
+          </div>
+        </label>
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
+        <input type="checkbox" id="filterDomain" checked
+          style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0;">
+        <label for="filterDomain"
+          style="margin: 0; font-weight: 500; cursor: pointer; font-size: 12px; color: var(--text-main); display: inline-flex; align-items: center; justify-content: space-between; flex: 1;">
+          Show current tab only
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the elements list will only show items matching
+              the current active tab.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div
+      style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+      <div
+        style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          📂 Presets
+        </div>
+        <div class="tooltip-wrapper align-right">
+          <span class="tooltip-icon">?</span>
+          <div class="tooltip-text" style="width: 180px; font-weight: normal;">Save your active element list, run mode,
+            and execution configuration into a preset for future use.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-bottom: 8px;">
+        <select id="presetSelect" style="flex:1; height:30px; font-size: 12px; background-color: var(--bg-color);">
+          <option value="custom">-- Unsaved List --</option>
+        </select>
+        <button id="newPresetBtn" title="Create New Preset" class="icon-btn"
+          style="width:30px; height:30px; padding:0; justify-content:center; border:1px solid var(--border-color); border-radius:6px; background:var(--surface-color); font-size:18px;">+</button>
+      </div>
+
+      <div id="presetActionsBlock" style="display:none; gap:6px;">
+        <button id="loadPresetBtn" class="icon-btn primary" title="Load into List"
+          style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">Load</button>
+        <button id="savePresetBtn" class="icon-btn" title="Overwrite Preset"
+          style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">Save</button>
+        <button id="renamePresetBtn" class="icon-btn" title="Rename Preset"
+          style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">Rename</button>
+        <button id="deletePresetBtn" class="icon-btn danger" title="Delete Preset"
+          style="width:30px; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">✕</button>
+      </div>
+
+      <div id="presetPromptDiv"
+        style="display:none; margin-top: 8px; gap: 6px; flex-direction:column; padding: 10px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px;">
+        <input type="text" id="presetNameInput" placeholder="Enter preset name..."
+          style="padding: 6px 8px; height: 30px; font-size:12px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+        <div style="display:flex; gap: 6px;">
+          <button id="presetConfirmBtn"
+            style="flex:1; padding: 6px; background-color: var(--accent-primary); font-size:11px; border-radius: 4px;">Submit</button>
+          <button id="presetCancelBtn"
+            style="flex:1; padding: 6px; background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size:11px; border-radius: 4px;">Cancel</button>
+        </div>
+      </div>
+
+      <div id="presetTransferBlock" style="display:flex; flex-direction:column; gap:6px; margin-top: 8px;">
+        <div style="display:flex; gap:6px;">
+          <button id="exportSinglePresetBtn" class="icon-btn" title="Export Active Preset"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Export
+            Preset</button>
+          <button id="importSinglePresetBtn" class="icon-btn" title="Import Single Preset"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Import
+            Preset</button>
+          <input type="file" id="importSinglePresetInput" accept=".json" style="display: none;">
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button id="exportPresetBtn" class="icon-btn" title="Export All Presets"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Export
+            All Presets</button>
+          <button id="importPresetBtn" class="icon-btn" title="Import All Presets"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Import
+            All Presets</button>
+          <input type="file" id="importPresetInput" accept=".json" style="display: none;">
+        </div>
+      </div>
+    </div>
+
+    <button id="settingsBackBtn"
+      style="margin-top: 2px; height: 34px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; cursor: pointer; border-radius: 6px; font-weight: 500;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back to Dashboard
     </button>
   </div>
 
-  <div class="add-section" id="addSection" style="display: none;">
-    <input type="hidden" id="editId">
+  <div id="mainView" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+    <div class="add-section" id="addSection" style="display: none;">
+      <input type="hidden" id="editId">
 
-    <div class="field">
-      <label for="customName">
-        Custom Name (Optional)
-        <div class="tooltip-wrapper align-left">
-          <span class="tooltip-icon">?</span>
-          <div class="tooltip-text">A custom display name for this element in the list.</div>
-        </div>
-      </label>
-      <input type="text" id="customName" placeholder="e.g. Buy Button">
-    </div>
-
-    <div class="flex-row">
       <div class="field">
-        <label for="elementType">
-          Element Type
+        <label for="customName">
+          Custom Name (Optional)
           <div class="tooltip-wrapper align-left">
             <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">Select the HTML tag of the element to click, or 'Any' for a custom selector.</div>
+            <div class="tooltip-text">A custom display name for this element in the list.</div>
           </div>
         </label>
-        <select id="elementType">
-          <option value="any">Any CSS Selector</option>
-          <option value="button">Button (button)</option>
-          <option value="a">Link (a)</option>
-          <option value="div">Div (div)</option>
-          <option value="span">Span (span)</option>
-          <option value="input">Input (input)</option>
-          <option value="img">Image (img)</option>
-        </select>
+        <input type="text" id="customName" placeholder="e.g. Buy Button">
+      </div>
+
+      <div class="flex-row">
+        <div class="field">
+          <label for="elementType">
+            Element Type
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Select the HTML tag of the element to click, or 'Any' for a custom selector.
+              </div>
+            </div>
+          </label>
+          <select id="elementType">
+            <option value="any">Any CSS Selector</option>
+            <option value="button">Button (button)</option>
+            <option value="a">Link (a)</option>
+            <option value="div">Div (div)</option>
+            <option value="span">Span (span)</option>
+            <option value="input">Input (input)</option>
+            <option value="img">Image (img)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="matchType">
+            Match Elements
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Choose whether to click the first, last, or all elements matching the criteria.
+              </div>
+            </div>
+          </label>
+          <select id="matchType">
+            <option value="first">First</option>
+            <option value="last">Last</option>
+            <option value="all">All</option>
+          </select>
+        </div>
       </div>
 
       <div class="field">
-        <label for="matchType">
-          Match Elements
-          <div class="tooltip-wrapper align-right">
-            <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">Choose whether to click the first, last, or all elements matching the criteria.
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
+          <label for="selector" style="margin-bottom: 0;">
+            CSS Selector
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">The exact CSS selector. Required if 'Any CSS Selector' is selected.</div>
+            </div>
+          </label>
+          <div class="tooltip-wrapper align-right" style="display: flex;">
+            <button id="pickBtn" type="button"
+              style="background: var(--surface-color); color: var(--text-main); font-size: 10px; padding: 2px 6px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 4px; border-radius: 4px; transition: all 0.2s; cursor: pointer;">
+              Element Picker
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+            </button>
+            <div class="tooltip-text"
+              style="width: 175px; text-align: left; padding: 6px 8px; font-weight: normal; bottom: 120%;">
+              <b style="color: var(--accent-primary);">How to use:</b><br />
+              1. Click this button<br />
+              2. The popup will close<br />
+              3. Hover an element on page<br />
+              4. Click it to save selector<br />
+              5. The popup will reopen<br />
+              6. Click "Add Element" to save<br />
             </div>
           </div>
-        </label>
-        <select id="matchType">
-          <option value="first">First</option>
-          <option value="last">Last</option>
-          <option value="all">All</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="field">
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
-        <label for="selector" style="margin-bottom: 0;">
-          CSS Selector
-          <div class="tooltip-wrapper align-left">
-            <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">The exact CSS selector. Required if 'Any CSS Selector' is selected.</div>
-          </div>
-        </label>
-        <div class="tooltip-wrapper align-right" style="display: flex;">
-          <button id="pickBtn" type="button"
-            style="background: var(--surface-color); color: var(--text-main); font-size: 10px; padding: 2px 6px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 4px; border-radius: 4px; transition: all 0.2s; cursor: pointer;">
-            Element Picker
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="12" r="4" />
-            </svg>
-          </button>
-          <div class="tooltip-text"
-            style="width: 175px; text-align: left; padding: 6px 8px; font-weight: normal; bottom: 120%;">
-            <b style="color: var(--accent-primary);">How to use:</b><br />
-            1. Click this button<br />
-            2. The popup will close<br />
-            3. Hover an element on page<br />
-            4. Click it to save selector<br />
-            5. The popup will reopen<br />
-            6. Click "Add Element" to save<br />
-          </div>
         </div>
+        <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" autocomplete="off">
+        <div id="selectorError" class="error">CSS Selector is required for "Any CSS Selector".</div>
       </div>
-      <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" autocomplete="off">
-      <div id="selectorError" class="error">CSS Selector is required for "Any CSS Selector".</div>
-    </div>
 
-    <div class="field">
-      <label for="targetText">
-        Target Text (Optional)
-        <div class="tooltip-wrapper align-left">
-          <span class="tooltip-icon">?</span>
-          <div class="tooltip-text">Only click elements that contain this exact text within them.</div>
-        </div>
-      </label>
-      <input type="text" id="targetText" placeholder="e.g. Add to Cart">
-    </div>
-
-    <div class="flex-row">
       <div class="field">
-        <label for="matchPattern">
-          Domain Pattern
+        <label for="targetText">
+          Target Text (Optional)
           <div class="tooltip-wrapper align-left">
             <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">Only click elements if the URL matches this pattern. Leave Empty to match all
-              URLs. Use * for placeholders (e.g. *://*.example.com/*).</div>
+            <div class="tooltip-text">Only click elements that contain this exact text within them.</div>
           </div>
         </label>
-        <input type="text" id="matchPattern" placeholder="e.g. *://*.example.com/*">
+        <input type="text" id="targetText" placeholder="e.g. Add to Cart">
       </div>
 
-      <div class="field" style="flex: 0 0 100px;">
-        <label for="itemInterval">
-          Speed (s)
-          <div class="tooltip-wrapper align-right">
+      <div class="flex-row">
+        <div class="field">
+          <label for="matchPattern">
+            Domain Pattern
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Only click elements if the URL matches this pattern. Leave Empty to match all
+                URLs. Use * for placeholders (e.g. *://*.example.com/*).</div>
+            </div>
+          </label>
+          <input type="text" id="matchPattern" placeholder="e.g. *://*.example.com/*">
+        </div>
+
+        <div class="field" style="flex: 0 0 100px;">
+          <label for="itemInterval">
+            Speed (s)
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Custom interval. Leave empty for Global.</div>
+            </div>
+          </label>
+          <input type="number" id="itemInterval" min="0.1" step="0.1" placeholder="Global">
+        </div>
+      </div>
+
+      <div class="form-btn-group">
+        <button id="addUpdateBtn">Add Element</button>
+        <button id="cancelFormBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div id="dashboardView" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+      <div class="list-section">
+        <div id="elementList"></div>
+      </div>
+
+      <div class="field" style="margin-bottom: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <label for="runMode" style="margin-bottom: 0;">Run Mode</label>
+          <div class="tooltip-wrapper align-left" style="margin-left: -2px;">
             <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">Custom interval. Leave empty for Global.</div>
+            <div class="tooltip-text" style="width:140px;">Sequence: runs items logically from top to
+              bottom.<br><br>Parallel: independent running timers.</div>
           </div>
-        </label>
-        <input type="number" id="itemInterval" min="0.1" step="0.1" placeholder="Global">
-      </div>
-    </div>
-
-    <div class="form-btn-group">
-      <button id="addUpdateBtn">Add Element</button>
-      <button id="cancelFormBtn">Cancel</button>
-    </div>
-  </div>
-
-  <div id="dashboardView" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
-    <div class="list-section">
-      <div class="list-header">
-        <label>
-          Elements to Click
-          <div class="tooltip-wrapper align-left">
-            <span class="tooltip-icon">?</span>
-            <div class="tooltip-text">Enable or disable elements directly from this list. They run in order.</div>
-          </div>
-        </label>
-        <div class="filter-wrapper">
-          <input type="checkbox" id="filterDomain" checked>
-          <label for="filterDomain" title="Only show matches for this exact URL / pattern">Show Current Tab Only</label>
+          <select id="runMode" style="flex: 1; height: 28px; padding: 2px 6px;">
+            <option value="sequence">Sequenced</option>
+            <option value="parallel">Parallel</option>
+          </select>
         </div>
       </div>
-      <div id="elementList"></div>
-    </div>
 
-    <div class="field" style="margin-bottom: 12px; flex-shrink: 0;">
-      <label for="interval">
-        Global Click Interval (Seconds)
-        <div class="tooltip-wrapper align-left">
-          <span class="tooltip-icon">?</span>
-          <div class="tooltip-text">How often the auto-clicker loop runs against all enabled elements.</div>
-        </div>
-      </label>
-      <input type="number" id="interval" min="0.1" step="0.1" placeholder="e.g. 1.5">
-    </div>
-
-    <div class="field"
-      style="margin-bottom: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-      <button id="openOverlayBtn"
-        style="width: 100%; padding: 8px; background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px;">
-        Open Page Overlay
-        <div class="tooltip-wrapper align-right" style="margin-left: 0;">
-          <span class="tooltip-icon">?</span>
-          <div class="tooltip-text">Displays a floating panel on the webpage so you can toggle elements without opening
-            the popup.</div>
-        </div>
-      </button>
-    </div>
-
-    <div class="main-controls">
-      <button id="start">
-        Start
-        <span class="shortcut">Alt+Shift+Z</span>
-      </button>
-      <button id="stop">
-        Stop
-        <span class="shortcut">Alt+Shift+X</span>
-      </button>
+      <div class="main-controls" style="display: flex; gap: 8px;">
+        <button id="toggleStartStopBtn"
+          style="flex: 1; padding: 8px; background-color: var(--accent-primary); font-size: 11px; font-weight: bold; transition: all 0.2s;">
+          Start
+        </button>
+        <button id="openOverlayBtn"
+          style="flex: 1; padding: 8px; background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); font-size: 11px;">
+          Open Page Overlay
+        </button>
+      </div>
     </div>
   </div>
 

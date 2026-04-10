@@ -15,24 +15,59 @@ const targetTextInput = document.getElementById('targetText');
 const matchPatternInput = document.getElementById('matchPattern');
 const itemIntervalInput = document.getElementById('itemInterval');
 const intervalInput = document.getElementById('interval');
+const autoStartCheckbox = document.getElementById('autoStart');
 const addUpdateBtn = document.getElementById('addUpdateBtn');
 const editIdInput = document.getElementById('editId');
 const elementList = document.getElementById('elementList');
 const filterDomainCheckbox = document.getElementById('filterDomain');
-const startBtn = document.getElementById('start');
-const stopBtn = document.getElementById('stop');
+const toggleStartStopBtn = document.getElementById('toggleStartStopBtn');
 const openOverlayBtn = document.getElementById('openOverlayBtn');
+
+const runModeSelect = document.getElementById('runMode');
+const presetSelect = document.getElementById('presetSelect');
+const loadPresetBtn = document.getElementById('loadPresetBtn');
+const savePresetBtn = document.getElementById('savePresetBtn');
+const newPresetBtn = document.getElementById('newPresetBtn');
+const deletePresetBtn = document.getElementById('deletePresetBtn');
+const renamePresetBtn = document.getElementById('renamePresetBtn');
+const presetActionsBlock = document.getElementById('presetActionsBlock');
+
+const exportSinglePresetBtn = document.getElementById('exportSinglePresetBtn');
+const importSinglePresetBtn = document.getElementById('importSinglePresetBtn');
+const importSinglePresetInput = document.getElementById('importSinglePresetInput');
+
+const exportPresetBtn = document.getElementById('exportPresetBtn');
+const importPresetBtn = document.getElementById('importPresetBtn');
+const importPresetInput = document.getElementById('importPresetInput');
+
+const presetPromptDiv = document.getElementById('presetPromptDiv');
+const presetNameInput = document.getElementById('presetNameInput');
+const presetConfirmBtn = document.getElementById('presetConfirmBtn');
+const presetCancelBtn = document.getElementById('presetCancelBtn');
+
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsView = document.getElementById('settingsView');
+const mainView = document.getElementById('mainView');
+const settingsBackBtn = document.getElementById('settingsBackBtn');
 
 const pickBtn = document.getElementById('pickBtn');
 
 let items = [];
 let defaultMatchPattern = '';
 let currentTabUrl = '';
+let isRenaming = false;
+
+let presets = [];
+let currentPresetId = 'custom';
 
 let rafId = null;
 let globalIsRunning = false;
 let globalInterval = 1.5;
 let globalStartTime = 0;
+let runMode = 'sequence';
+
+let activeSequenceItemId = null;
+let activeSequenceItemStart = 0;
 
 function updateProgressBars() {
   if (!globalIsRunning) return;
@@ -42,21 +77,36 @@ function updateProgressBars() {
     const bar = el.querySelector('.progress-bar');
     if (!bar) return;
     const isEnabled = el.querySelector('.item-checkbox').checked;
+
     if (!isEnabled) {
       bar.style.width = '0%';
       bar.classList.remove('fast-mode');
       return;
     }
-    const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
 
-    if (itemIntervalMs < 100) {
-      if (!bar.classList.contains('fast-mode')) bar.classList.add('fast-mode');
+    if (runMode === 'sequence') {
+      const itemId = el.dataset.itemId;
+      if (itemId === activeSequenceItemId) {
+        const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+        const elapsed = now - activeSequenceItemStart;
+        const progress = Math.min(1, Math.max(0, elapsed / itemIntervalMs));
+        bar.style.width = `${progress * 100}%`;
+        bar.style.opacity = '1';
+        if (bar.classList.contains('fast-mode')) bar.classList.remove('fast-mode');
+      } else {
+        bar.style.width = '0%';
+      }
     } else {
-      if (bar.classList.contains('fast-mode')) bar.classList.remove('fast-mode');
-      const elapsed = now - globalStartTime;
-      if (elapsed < 0) return;
-      const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
-      bar.style.width = `${progress * 100}%`;
+      const itemIntervalMs = el.dataset.intervalMs ? parseFloat(el.dataset.intervalMs) : globalInterval * 1000;
+      if (itemIntervalMs < 100) {
+        if (!bar.classList.contains('fast-mode')) bar.classList.add('fast-mode');
+      } else {
+        if (bar.classList.contains('fast-mode')) bar.classList.remove('fast-mode');
+        const elapsed = now - globalStartTime;
+        if (elapsed < 0) return;
+        const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
+        bar.style.width = `${progress * 100}%`;
+      }
     }
   });
   rafId = requestAnimationFrame(updateProgressBars);
@@ -149,15 +199,22 @@ function initTabContext() {
 const dashboardView = document.getElementById('dashboardView');
 
 function openForm() {
+  settingsView.style.display = 'none';
+  settingsBtn.style.background = 'var(--surface-color)';
+  settingsBtn.style.color = 'var(--text-main)';
+  mainView.style.display = 'flex';
+
   addSection.style.display = 'block';
   toggleFormBtn.style.display = 'none';
   dashboardView.style.display = 'none';
+  settingsBtn.style.display = 'none';
 }
 
 function closeForm() {
   addSection.style.display = 'none';
   toggleFormBtn.style.display = 'flex';
   dashboardView.style.display = 'flex';
+  settingsBtn.style.display = 'flex';
 
   editIdInput.value = '';
   addUpdateBtn.textContent = 'Add Element';
@@ -231,6 +288,17 @@ function generateConciseTitle(item, fullSel) {
 function createListItem(item) {
   const el = document.createElement('div');
   el.className = 'element-item';
+  el.dataset.itemId = item.id;
+  el.draggable = true;
+
+  const dragHandle = document.createElement('div');
+  dragHandle.innerHTML = '⋮⋮';
+  dragHandle.style.cursor = 'grab';
+  dragHandle.style.color = 'var(--text-muted)';
+  dragHandle.style.fontSize = '14px';
+  dragHandle.style.paddingRight = '4px';
+  dragHandle.style.userSelect = 'none';
+  el.appendChild(dragHandle);
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
@@ -257,21 +325,14 @@ function createListItem(item) {
   selDiv.appendChild(matchBadge);
   info.appendChild(selDiv);
 
-  const rawSelDiv = document.createElement('div');
-  rawSelDiv.className = 'item-text';
-  rawSelDiv.style.fontFamily = 'monospace';
-  rawSelDiv.style.opacity = '0.75';
-  rawSelDiv.textContent = fullSel.length > 35 ? fullSel.substring(0, 35) + '...' : fullSel;
-  rawSelDiv.title = fullSel;
-  info.appendChild(rawSelDiv);
 
-  if (item.matchPattern || item.interval) {
+
+  if (item.interval) {
     const extrasDiv = document.createElement('div');
     extrasDiv.className = 'item-text';
 
     let extras = [];
-    if (item.matchPattern) extras.push(`Pattern: ${item.matchPattern}`);
-    if (item.interval) extras.push(`Speed: ${item.interval}s`);
+    extras.push(`Speed: ${item.interval}s`);
 
     extrasDiv.textContent = extras.join(' | ');
     info.appendChild(extrasDiv);
@@ -300,6 +361,23 @@ function createListItem(item) {
     toggleSelectorPlaceholder();
   });
 
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'icon-btn';
+  copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+  copyBtn.title = "Duplicate";
+  copyBtn.addEventListener('click', () => {
+    const newItem = JSON.parse(JSON.stringify(item));
+    newItem.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    const index = items.findIndex(i => i.id === item.id);
+    if (index > -1) {
+      items.splice(index + 1, 0, newItem);
+    } else {
+      items.push(newItem);
+    }
+    saveItems();
+    renderList();
+  });
+
   const removeBtn = document.createElement('button');
   removeBtn.className = 'icon-btn danger';
   removeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
@@ -312,6 +390,7 @@ function createListItem(item) {
   });
 
   actions.appendChild(editBtn);
+  actions.appendChild(copyBtn);
   actions.appendChild(removeBtn);
 
   el.appendChild(checkbox);
@@ -365,9 +444,383 @@ function renderList() {
   });
 }
 
+let dragSourceEl = null;
+
+elementList.addEventListener('dragstart', (e) => {
+  const itemEl = e.target.closest('.element-item');
+  if (!itemEl) return;
+  dragSourceEl = itemEl;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSourceEl.dataset.itemId);
+  setTimeout(() => itemEl.style.opacity = '0.4', 0);
+});
+
+elementList.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const targetEl = e.target.closest('.element-item');
+  if (targetEl && targetEl !== dragSourceEl) {
+    const rect = targetEl.getBoundingClientRect();
+    const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+    if (next) {
+      targetEl.style.borderBottom = '2px solid var(--accent-primary)';
+      targetEl.style.borderTop = '';
+    } else {
+      targetEl.style.borderTop = '2px solid var(--accent-primary)';
+      targetEl.style.borderBottom = '';
+    }
+  }
+});
+
+elementList.addEventListener('dragleave', (e) => {
+  const targetEl = e.target.closest('.element-item');
+  if (targetEl) {
+    targetEl.style.borderTop = '';
+    targetEl.style.borderBottom = '1px solid var(--border-color)';
+  }
+});
+
+elementList.addEventListener('dragend', (e) => {
+  if (dragSourceEl) {
+    dragSourceEl.style.opacity = '1';
+  }
+  const allItems = Array.from(elementList.querySelectorAll('.element-item'));
+  allItems.forEach(el => {
+    el.style.borderTop = '';
+    el.style.borderBottom = '1px solid var(--border-color)';
+  });
+});
+
+elementList.addEventListener('drop', (e) => {
+  e.stopPropagation();
+  e.preventDefault();
+
+  const targetEl = e.target.closest('.element-item');
+
+  if (targetEl && targetEl !== dragSourceEl) {
+    const rect = targetEl.getBoundingClientRect();
+    const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+
+    const draggedId = dragSourceEl.dataset.itemId;
+    const targetId = targetEl.dataset.itemId;
+
+    const draggedRealIndex = items.findIndex(i => i.id === draggedId);
+    let targetRealIndex = items.findIndex(i => i.id === targetId);
+
+    if (draggedRealIndex > -1 && targetRealIndex > -1) {
+      if (next) targetRealIndex++;
+
+      const [movedItem] = items.splice(draggedRealIndex, 1);
+      if (draggedRealIndex < targetRealIndex) targetRealIndex--;
+
+      items.splice(targetRealIndex, 0, movedItem);
+
+      saveItems();
+      renderList();
+    }
+  }
+
+  if (dragSourceEl) dragSourceEl.style.opacity = '1';
+  const allItems = Array.from(elementList.querySelectorAll('.element-item'));
+  allItems.forEach(el => {
+    el.style.borderTop = '';
+    el.style.borderBottom = '1px solid var(--border-color)';
+  });
+});
+
 function saveItems() {
   browser.storage.local.set({ items: items });
 }
+
+function savePresets() {
+  browser.storage.local.set({ presets, currentPresetId });
+}
+
+function renderPresets() {
+  presetSelect.innerHTML = '<option value="custom">-- Unsaved List --</option>';
+  presets.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    presetSelect.appendChild(opt);
+  });
+  presetSelect.value = currentPresetId;
+  presetActionsBlock.style.display = currentPresetId === 'custom' ? 'none' : 'flex';
+  presetPromptDiv.style.display = 'none';
+}
+
+settingsBtn.addEventListener('click', () => {
+  const isSettingsOpen = settingsView.style.display === 'flex';
+  if (isSettingsOpen) {
+    settingsView.style.display = 'none';
+    mainView.style.display = 'flex';
+    settingsBtn.style.background = 'var(--surface-color)';
+    settingsBtn.style.color = 'var(--text-main)';
+    toggleFormBtn.style.display = 'flex';
+  } else {
+    settingsView.style.display = 'flex';
+    mainView.style.display = 'none';
+    settingsBtn.style.background = 'var(--accent-primary)';
+    settingsBtn.style.color = '#fff';
+    toggleFormBtn.style.display = 'none';
+  }
+});
+
+settingsBackBtn.addEventListener('click', () => {
+  settingsView.style.display = 'none';
+  mainView.style.display = 'flex';
+  settingsBtn.style.background = 'var(--surface-color)';
+  settingsBtn.style.color = 'var(--text-main)';
+  toggleFormBtn.style.display = 'flex';
+});
+
+runModeSelect.addEventListener('change', () => {
+  browser.storage.local.set({ runMode: runModeSelect.value });
+});
+
+presetSelect.addEventListener('change', () => {
+  currentPresetId = presetSelect.value;
+  savePresets();
+  renderPresets();
+});
+
+loadPresetBtn.addEventListener('click', () => {
+  if (currentPresetId !== 'custom') {
+    const p = presets.find(x => x.id === currentPresetId);
+    if (p) {
+      items = JSON.parse(JSON.stringify(p.items));
+      saveItems();
+      renderList();
+
+      if (p.runMode) {
+        runModeSelect.value = p.runMode;
+        browser.storage.local.set({ runMode: p.runMode });
+      }
+
+      const oldTxt = loadPresetBtn.textContent;
+      loadPresetBtn.textContent = 'Loaded!';
+      setTimeout(() => loadPresetBtn.textContent = oldTxt, 1000);
+    }
+  }
+});
+
+savePresetBtn.addEventListener('click', () => {
+  if (currentPresetId !== 'custom') {
+    const p = presets.find(x => x.id === currentPresetId);
+    if (p) {
+      p.items = JSON.parse(JSON.stringify(items));
+      p.runMode = runModeSelect.value;
+      savePresets();
+      const oldTxt = savePresetBtn.textContent;
+      savePresetBtn.textContent = 'Saved!';
+      setTimeout(() => savePresetBtn.textContent = oldTxt, 1000);
+    }
+  }
+});
+
+exportSinglePresetBtn.addEventListener('click', () => {
+  let exportData = null;
+  if (currentPresetId !== 'custom') {
+    exportData = presets.find(x => x.id === currentPresetId);
+  } else {
+    exportData = { id: Date.now().toString(), name: "Exported Preset", items: items, runMode: runModeSelect.value };
+  }
+  
+  if (!exportData) return;
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", `easyclicker_${exportData.name.replace(/[^A-Za-z0-9]/g, '_')}.json`);
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  
+  const oldTxt = exportSinglePresetBtn.textContent;
+  exportSinglePresetBtn.textContent = 'Exported!';
+  setTimeout(() => exportSinglePresetBtn.textContent = oldTxt, 1500);
+});
+
+importSinglePresetBtn.addEventListener('click', () => {
+  importSinglePresetInput.click();
+});
+
+importSinglePresetInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (parsed && parsed.id && parsed.name && Array.isArray(parsed.items)) {
+        parsed.id = Date.now().toString(); // Ensure unique ID
+        
+        let newName = parsed.name;
+        // Basic duplicate name collision resolution
+        let copyNum = 1;
+        while (presets.some(p => p.name === newName)) {
+          newName = `${parsed.name} (${copyNum})`;
+          copyNum++;
+        }
+        parsed.name = newName;
+
+        presets.push(parsed);
+        currentPresetId = parsed.id;
+        
+        savePresets();
+        renderPresets();
+        
+        items = JSON.parse(JSON.stringify(parsed.items));
+        saveItems();
+        renderList();
+        
+        if (parsed.runMode) {
+          runModeSelect.value = parsed.runMode;
+          browser.storage.local.set({ runMode: parsed.runMode });
+        }
+
+        const oldTxt = importSinglePresetBtn.textContent;
+        importSinglePresetBtn.textContent = 'Imported!';
+        setTimeout(() => importSinglePresetBtn.textContent = oldTxt, 1500);
+      } else {
+        alert("Invalid single preset file format.");
+      }
+    } catch(err) {
+      alert("Invalid JSON file");
+    }
+  };
+  reader.readAsText(file);
+  importSinglePresetInput.value = '';
+});
+
+exportPresetBtn.addEventListener('click', () => {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(presets, null, 2));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", "easyclicker_presets.json");
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  
+  const oldTxt = exportPresetBtn.textContent;
+  exportPresetBtn.textContent = 'Exported!';
+  setTimeout(() => exportPresetBtn.textContent = oldTxt, 1500);
+});
+
+importPresetBtn.addEventListener('click', () => {
+  importPresetInput.click();
+});
+
+importPresetInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (Array.isArray(parsed)) {
+        presets = parsed;
+        currentPresetId = 'custom';
+        savePresets();
+        renderPresets();
+        const oldTxt = importPresetBtn.textContent;
+        importPresetBtn.textContent = 'Imported!';
+        setTimeout(() => importPresetBtn.textContent = oldTxt, 1500);
+      }
+    } catch(err) {
+      alert("Invalid JSON file");
+    }
+  };
+  reader.readAsText(file);
+  importPresetInput.value = ''; // Reset input to allow re-importing the same actual file natively
+});
+
+newPresetBtn.addEventListener('click', () => {
+  isRenaming = false;
+  presetPromptDiv.style.display = 'flex';
+  presetNameInput.value = '';
+  presetConfirmBtn.textContent = 'Create';
+  presetNameInput.focus();
+});
+
+renamePresetBtn.addEventListener('click', () => {
+  if (currentPresetId !== 'custom') {
+    const p = presets.find(x => x.id === currentPresetId);
+    if (p) {
+      isRenaming = true;
+      presetPromptDiv.style.display = 'flex';
+      presetNameInput.value = p.name;
+      presetConfirmBtn.textContent = 'Rename';
+      presetNameInput.focus();
+    }
+  }
+});
+
+presetCancelBtn.addEventListener('click', () => {
+  presetPromptDiv.style.display = 'none';
+  presetNameInput.value = '';
+});
+
+presetNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') presetConfirmBtn.click();
+  if (e.key === 'Escape') presetCancelBtn.click();
+});
+
+presetConfirmBtn.addEventListener('click', () => {
+  const name = presetNameInput.value;
+  if (name && name.trim()) {
+    if (isRenaming && currentPresetId !== 'custom') {
+      const p = presets.find(x => x.id === currentPresetId);
+      if (p) {
+        p.name = name.trim();
+        savePresets();
+        renderPresets();
+      }
+    } else {
+      const id = Date.now().toString();
+      presets.push({
+        id,
+        name: name.trim(),
+        items: JSON.parse(JSON.stringify(items)),
+        runMode: runModeSelect.value
+      });
+      currentPresetId = id;
+      savePresets();
+      renderPresets();
+    }
+    presetPromptDiv.style.display = 'none';
+    presetNameInput.value = '';
+    isRenaming = false;
+  }
+});
+
+let deleteConfirmState = false;
+deletePresetBtn.addEventListener('click', () => {
+  if (currentPresetId !== 'custom') {
+    if (!deleteConfirmState) {
+      deleteConfirmState = true;
+      deletePresetBtn.textContent = 'Sure?';
+      deletePresetBtn.style.color = 'var(--accent-danger)';
+      deletePresetBtn.style.width = '48px';
+      setTimeout(() => {
+        if (deleteConfirmState) {
+          deleteConfirmState = false;
+          deletePresetBtn.textContent = '✕';
+          deletePresetBtn.style.color = 'var(--text-main)';
+          deletePresetBtn.style.width = '34px';
+        }
+      }, 3000);
+    } else {
+      presets = presets.filter(x => x.id !== currentPresetId);
+      currentPresetId = 'custom';
+      savePresets();
+      renderPresets();
+      deleteConfirmState = false;
+      deletePresetBtn.textContent = '✕';
+      deletePresetBtn.style.color = 'var(--text-main)';
+      deletePresetBtn.style.width = '34px';
+    }
+  }
+});
 
 function toggleSelectorPlaceholder() {
   if (elementTypeObj.value === 'any') {
@@ -428,38 +881,27 @@ addUpdateBtn.addEventListener('click', () => {
   renderList();
 });
 
-const statusBadge = document.getElementById('statusBadge');
-
 function updateStatus(running) {
   if (running) {
-    statusBadge.textContent = 'RUNNING';
-    statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-    statusBadge.style.color = '#10b981';
-    statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-    startBtn.style.opacity = '0.5';
-    startBtn.style.pointerEvents = 'none';
-    stopBtn.style.opacity = '1';
-    stopBtn.style.pointerEvents = 'auto';
-    stopBtn.style.transform = 'scale(1.02)';
+    toggleStartStopBtn.textContent = 'Stop';
+    toggleStartStopBtn.style.backgroundColor = 'var(--accent-danger)';
   } else {
-    statusBadge.textContent = 'IDLE';
-    statusBadge.style.background = 'var(--surface-color)';
-    statusBadge.style.color = 'var(--text-muted)';
-    statusBadge.style.borderColor = 'var(--border-color)';
-    startBtn.style.opacity = '1';
-    startBtn.style.pointerEvents = 'auto';
-    stopBtn.style.opacity = '0.5';
-    stopBtn.style.pointerEvents = 'none';
-    stopBtn.style.transform = 'scale(1)';
+    toggleStartStopBtn.textContent = 'Start';
+    toggleStartStopBtn.style.backgroundColor = 'var(--accent-primary)';
   }
 }
 
 filterDomainCheckbox.addEventListener('change', () => {
+  browser.storage.local.set({ filterDomain: filterDomainCheckbox.checked });
   renderList();
 });
 
 intervalInput.addEventListener('input', () => {
   browser.storage.local.set({ interval: intervalInput.value });
+});
+
+autoStartCheckbox.addEventListener('change', () => {
+  browser.storage.local.set({ autoStart: autoStartCheckbox.checked });
 });
 
 openOverlayBtn.addEventListener('click', () => {
@@ -497,12 +939,46 @@ browser.storage.onChanged.addListener((changes) => {
       document.querySelectorAll('.progress-bar').forEach(bar => bar.style.width = '0%');
     }
   }
+  if (changes.runMode && changes.runMode.newValue) {
+    runMode = changes.runMode.newValue;
+    runModeSelect.value = runMode;
+  }
+  if (changes.activeSequenceItemId) {
+    activeSequenceItemId = changes.activeSequenceItemId.newValue;
+  }
+  if (changes.activeSequenceItemStart) {
+    activeSequenceItemStart = changes.activeSequenceItemStart.newValue;
+  }
 });
 
-browser.storage.local.get(['items', 'interval', 'isRunning', 'draftItem', 'pickedSelector', 'pickedText', 'startTime']).then((res) => {
+browser.storage.local.get(['presets', 'currentPresetId', 'runMode', 'items', 'interval', 'autoStart', 'filterDomain', 'isRunning', 'draftItem', 'pickedSelector', 'pickedText', 'startTime', 'activeSequenceItemId', 'activeSequenceItemStart']).then((res) => {
+  if (res.runMode) {
+    runMode = res.runMode;
+    runModeSelect.value = runMode;
+  }
+
+  if (res.activeSequenceItemId) activeSequenceItemId = res.activeSequenceItemId;
+  if (res.activeSequenceItemStart) activeSequenceItemStart = res.activeSequenceItemStart;
+
+  if (res.presets) {
+    presets = res.presets;
+  }
+  if (res.currentPresetId) {
+    currentPresetId = res.currentPresetId;
+  }
+  renderPresets();
+
   if (res.interval) {
     intervalInput.value = res.interval;
     globalInterval = parseFloat(res.interval) || 1.5;
+  }
+
+  if (res.autoStart !== undefined) {
+    autoStartCheckbox.checked = res.autoStart;
+  }
+
+  if (res.filterDomain !== undefined) {
+    filterDomainCheckbox.checked = res.filterDomain;
   }
 
   globalStartTime = res.startTime || Date.now();
@@ -571,12 +1047,8 @@ browser.storage.local.get(['items', 'interval', 'isRunning', 'draftItem', 'picke
   initTabContext();
 });
 
-startBtn.addEventListener('click', () => {
-  browser.runtime.sendMessage({ action: 'start' });
-});
-
-stopBtn.addEventListener('click', () => {
-  browser.runtime.sendMessage({ action: 'stop' });
+toggleStartStopBtn.addEventListener('click', () => {
+  browser.runtime.sendMessage({ action: globalIsRunning ? 'stop' : 'start' });
 });
 
 toggleSelectorPlaceholder();
