@@ -58,7 +58,7 @@ let currentTabUrl = '';
 let isRenaming = false;
 
 let presets = [];
-let currentPresetId = 'custom';
+let currentPresetId = 'default';
 
 let rafId = null;
 let globalIsRunning = false;
@@ -532,20 +532,35 @@ function saveItems() {
   browser.storage.local.set({ items: items });
 }
 
+function stopClicker() {
+  if (globalIsRunning) {
+    browser.storage.local.set({ isRunning: false });
+  }
+}
+
 function savePresets() {
   browser.storage.local.set({ presets, currentPresetId });
 }
 
 function renderPresets() {
-  presetSelect.innerHTML = '<option value="custom">-- Unsaved List --</option>';
-  presets.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.name;
-    presetSelect.appendChild(opt);
-  });
-  presetSelect.value = currentPresetId;
-  presetActionsBlock.style.display = currentPresetId === 'custom' ? 'none' : 'flex';
+  presetSelect.innerHTML = '';
+  if (presets.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = 'default';
+    placeholder.textContent = 'No presets saved';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    presetSelect.appendChild(placeholder);
+  } else {
+    presets.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      presetSelect.appendChild(opt);
+    });
+    presetSelect.value = currentPresetId;
+  }
+  presetActionsBlock.style.display = presets.length === 0 ? 'none' : 'flex';
   presetPromptDiv.style.display = 'none';
 }
 
@@ -585,9 +600,10 @@ presetSelect.addEventListener('change', () => {
 });
 
 loadPresetBtn.addEventListener('click', () => {
-  if (currentPresetId !== 'custom') {
+  if (currentPresetId !== 'default') {
     const p = presets.find(x => x.id === currentPresetId);
     if (p) {
+      stopClicker();
       items = JSON.parse(JSON.stringify(p.items));
       saveItems();
       renderList();
@@ -605,7 +621,7 @@ loadPresetBtn.addEventListener('click', () => {
 });
 
 savePresetBtn.addEventListener('click', () => {
-  if (currentPresetId !== 'custom') {
+  if (currentPresetId !== 'default') {
     const p = presets.find(x => x.id === currentPresetId);
     if (p) {
       p.items = JSON.parse(JSON.stringify(items));
@@ -620,12 +636,12 @@ savePresetBtn.addEventListener('click', () => {
 
 exportSinglePresetBtn.addEventListener('click', () => {
   let exportData = null;
-  if (currentPresetId !== 'custom') {
+  if (currentPresetId !== 'default') {
     exportData = presets.find(x => x.id === currentPresetId);
   } else {
     exportData = { id: Date.now().toString(), name: "Exported Preset", items: items, runMode: runModeSelect.value };
   }
-  
+
   if (!exportData) return;
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
   const downloadAnchorNode = document.createElement('a');
@@ -634,7 +650,7 @@ exportSinglePresetBtn.addEventListener('click', () => {
   document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
-  
+
   const oldTxt = exportSinglePresetBtn.textContent;
   exportSinglePresetBtn.textContent = 'Exported!';
   setTimeout(() => exportSinglePresetBtn.textContent = oldTxt, 1500);
@@ -648,12 +664,12 @@ importSinglePresetInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = function (evt) {
     try {
       const parsed = JSON.parse(evt.target.result);
       if (parsed && parsed.id && parsed.name && Array.isArray(parsed.items)) {
         parsed.id = Date.now().toString(); // Ensure unique ID
-        
+
         let newName = parsed.name;
         // Basic duplicate name collision resolution
         let copyNum = 1;
@@ -665,14 +681,15 @@ importSinglePresetInput.addEventListener('change', (e) => {
 
         presets.push(parsed);
         currentPresetId = parsed.id;
-        
+
+        stopClicker();
         savePresets();
         renderPresets();
-        
+
         items = JSON.parse(JSON.stringify(parsed.items));
         saveItems();
         renderList();
-        
+
         if (parsed.runMode) {
           runModeSelect.value = parsed.runMode;
           browser.storage.local.set({ runMode: parsed.runMode });
@@ -684,7 +701,7 @@ importSinglePresetInput.addEventListener('change', (e) => {
       } else {
         alert("Invalid single preset file format.");
       }
-    } catch(err) {
+    } catch (err) {
       alert("Invalid JSON file");
     }
   };
@@ -700,7 +717,7 @@ exportPresetBtn.addEventListener('click', () => {
   document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
-  
+
   const oldTxt = exportPresetBtn.textContent;
   exportPresetBtn.textContent = 'Exported!';
   setTimeout(() => exportPresetBtn.textContent = oldTxt, 1500);
@@ -714,19 +731,19 @@ importPresetInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = function (evt) {
     try {
       const parsed = JSON.parse(evt.target.result);
       if (Array.isArray(parsed)) {
         presets = parsed;
-        currentPresetId = 'custom';
+        currentPresetId = 'default';
         savePresets();
         renderPresets();
         const oldTxt = importPresetBtn.textContent;
         importPresetBtn.textContent = 'Imported!';
         setTimeout(() => importPresetBtn.textContent = oldTxt, 1500);
       }
-    } catch(err) {
+    } catch (err) {
       alert("Invalid JSON file");
     }
   };
@@ -743,7 +760,7 @@ newPresetBtn.addEventListener('click', () => {
 });
 
 renamePresetBtn.addEventListener('click', () => {
-  if (currentPresetId !== 'custom') {
+  if (currentPresetId !== 'default') {
     const p = presets.find(x => x.id === currentPresetId);
     if (p) {
       isRenaming = true;
@@ -768,7 +785,7 @@ presetNameInput.addEventListener('keydown', (e) => {
 presetConfirmBtn.addEventListener('click', () => {
   const name = presetNameInput.value;
   if (name && name.trim()) {
-    if (isRenaming && currentPresetId !== 'custom') {
+    if (isRenaming && currentPresetId !== 'default') {
       const p = presets.find(x => x.id === currentPresetId);
       if (p) {
         p.name = name.trim();
@@ -795,7 +812,7 @@ presetConfirmBtn.addEventListener('click', () => {
 
 let deleteConfirmState = false;
 deletePresetBtn.addEventListener('click', () => {
-  if (currentPresetId !== 'custom') {
+  if (currentPresetId !== 'default') {
     if (!deleteConfirmState) {
       deleteConfirmState = true;
       deletePresetBtn.textContent = 'Sure?';
@@ -811,7 +828,7 @@ deletePresetBtn.addEventListener('click', () => {
       }, 3000);
     } else {
       presets = presets.filter(x => x.id !== currentPresetId);
-      currentPresetId = 'custom';
+      currentPresetId = 'default';
       savePresets();
       renderPresets();
       deleteConfirmState = false;

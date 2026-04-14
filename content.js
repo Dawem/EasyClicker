@@ -27,10 +27,10 @@ function addClickableHighlights() {
   const allEls = document.querySelectorAll('*');
   allEls.forEach(el => {
     if (!(el instanceof HTMLElement)) return;
-    
+
     let isClickable = false;
     const tag = el.tagName.toLowerCase();
-    
+
     if (tag === 'button' || tag === 'a' || tag === 'select') {
       isClickable = true;
     } else if (tag === 'input' && ['button', 'submit', 'checkbox', 'radio'].includes(el.type)) {
@@ -42,7 +42,7 @@ function addClickableHighlights() {
     } else {
       const computed = window.getComputedStyle(el);
       if (computed.cursor === 'pointer') {
-         isClickable = true;
+        isClickable = true;
       }
     }
 
@@ -57,10 +57,10 @@ function removeClickableHighlights() {
   highlightedClickables.forEach(el => {
     try {
       el.classList.remove('ec-clickable-element');
-    } catch(e) {}
+    } catch (e) { }
   });
   highlightedClickables = [];
-  
+
   const style = document.getElementById('ec-clickable-styles');
   if (style) style.remove();
 }
@@ -401,7 +401,7 @@ function startClicker() {
             const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
               ? parseFloat(item.interval) * 1000
               : globalIntervalMs;
-            
+
             browser.storage.local.set({ activeSequenceItemId: item.id, activeSequenceItemStart: Date.now() });
 
             await new Promise(resolve => {
@@ -412,11 +412,11 @@ function startClicker() {
           }
         }
         if (!processedAny) {
-           await new Promise(resolve => {
-              currentSequenceResolve = resolve;
-              currentSequenceTimer = setTimeout(resolve, 1000);
-           });
-           if (currentSequenceResolve) currentSequenceResolve = null;
+          await new Promise(resolve => {
+            currentSequenceResolve = resolve;
+            currentSequenceTimer = setTimeout(resolve, 1000);
+          });
+          if (currentSequenceResolve) currentSequenceResolve = null;
         }
       }
     }
@@ -447,6 +447,9 @@ let pageOverlayEl = null;
 let globalInterval = 1.5;
 let globalStartTime = 0;
 let rafId = null;
+
+let overlayPresets = [];
+let overlayCurrentPresetId = 'default';
 
 let overlayPosX = -1;
 let overlayPosY = -1;
@@ -535,7 +538,7 @@ function updateProgressBars() {
     const bar = el.querySelector('.progress-bar');
     if (!bar) return;
     const isEnabled = el.querySelector('input[type="checkbox"]').checked;
-    
+
     if (!isEnabled) {
       if (bar.classList.contains('ec-fast-mode')) bar.classList.remove('ec-fast-mode');
       bar.style.width = '0%';
@@ -629,10 +632,10 @@ function updatePageOverlay() {
       `;
       document.head.appendChild(style);
     }
-    
+
     pageOverlayEl = document.createElement('div');
     pageOverlayEl.id = 'ec-page-overlay';
-    
+
     if (overlayPosX === -1 || overlayPosY === -1) {
       // Default to top-right
       overlayPosX = window.innerWidth - 300 - 20; // 280w + 20 padding
@@ -662,7 +665,7 @@ function updatePageOverlay() {
   header.style.borderBottom = '1px solid #334155';
   header.onmousedown = () => header.style.cursor = 'grabbing';
   header.onmouseup = () => header.style.cursor = 'grab';
-  
+
   initDrag(header, pageOverlayEl);
 
   const title = document.createElement('div');
@@ -678,7 +681,7 @@ function updatePageOverlay() {
   });
   closeBtnWrap.onmouseover = () => closeBtnWrap.style.backgroundColor = 'rgba(255,255,255,0.1)';
   closeBtnWrap.onmouseout = () => closeBtnWrap.style.backgroundColor = 'transparent';
-  
+
   const closeBtn = document.createElement('div');
   closeBtn.innerText = '×';
   Object.assign(closeBtn.style, {
@@ -708,7 +711,7 @@ function updatePageOverlay() {
   listContainer.style.borderRadius = '6px';
   listContainer.style.padding = '8px';
   listContainer.style.background = '#0f172a';
-  
+
   listContainer.style.scrollbarWidth = 'thin';
   listContainer.style.scrollbarColor = '#334155 transparent';
 
@@ -730,18 +733,18 @@ function updatePageOverlay() {
       itemRow.style.display = 'flex';
       itemRow.style.flexDirection = 'column';
       itemRow.style.paddingBottom = '4px';
-      
+
       const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval))
         ? parseFloat(item.interval) * 1000
         : globalInterval * 1000;
       itemRow.dataset.intervalMs = itemIntervalMs;
       itemRow.dataset.itemId = item.id;
-      
+
       const elSection = document.createElement('div');
       elSection.style.display = 'flex';
       elSection.style.alignItems = 'center';
       elSection.style.gap = '8px';
-      
+
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = item.enabled;
@@ -768,7 +771,7 @@ function updatePageOverlay() {
       elSection.appendChild(cb);
       elSection.appendChild(name);
       itemRow.appendChild(elSection);
-      
+
       const pbContainer = document.createElement('div');
       Object.assign(pbContainer.style, {
         position: 'absolute', bottom: '0', left: '0', width: '100%', height: '2px', background: 'transparent'
@@ -787,6 +790,59 @@ function updatePageOverlay() {
 
   pageOverlayEl.appendChild(listContainer);
 
+  const presetRow = document.createElement('div');
+  Object.assign(presetRow.style, {
+    display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', marginTop: '4px'
+  });
+
+  const presetLabel = document.createElement('div');
+  presetLabel.innerText = 'Preset:';
+  Object.assign(presetLabel.style, { color: '#94a3b8', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' });
+
+  const overlayPresetSelect = document.createElement('select');
+  Object.assign(overlayPresetSelect.style, {
+    flex: '1', background: '#1e293b', color: '#f8fafc', border: '1px solid #334155',
+    borderRadius: '4px', padding: '2px 4px', fontSize: '11px', cursor: 'pointer', outline: 'none'
+  });
+
+  if (overlayPresets.length === 0) {
+    const noOpt = document.createElement('option');
+    noOpt.value = 'default';
+    noOpt.innerText = 'No presets saved';
+    noOpt.disabled = true;
+    noOpt.selected = true;
+    overlayPresetSelect.appendChild(noOpt);
+  } else {
+    overlayPresets.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.innerText = p.name;
+      overlayPresetSelect.appendChild(opt);
+    });
+    overlayPresetSelect.value = overlayCurrentPresetId !== 'default' ? overlayCurrentPresetId : overlayPresets[0].id;
+  }
+
+  overlayPresetSelect.onchange = () => {
+    const selectedId = overlayPresetSelect.value;
+    if (selectedId !== 'default') {
+      const p = overlayPresets.find(x => x.id === selectedId);
+      if (p) {
+        browser.storage.local.set({
+          isRunning: false,
+          items: JSON.parse(JSON.stringify(p.items)),
+          currentPresetId: selectedId
+        });
+        if (p.runMode) browser.storage.local.set({ runMode: p.runMode });
+      }
+    } else {
+      browser.storage.local.set({ currentPresetId: 'default' });
+    }
+    overlayCurrentPresetId = selectedId;
+  };
+
+  presetRow.appendChild(presetLabel);
+  presetRow.appendChild(overlayPresetSelect);
+  pageOverlayEl.appendChild(presetRow);
 
   const controls = document.createElement('div');
   controls.style.display = 'flex';
@@ -800,14 +856,14 @@ function updatePageOverlay() {
     backgroundColor: isRunning ? '#ef4444' : '#3b82f6',
     transition: 'all 0.2s'
   });
-  
+
   toggleBtn.onmouseover = () => toggleBtn.style.backgroundColor = isRunning ? '#dc2626' : '#2563eb';
   toggleBtn.onmouseout = () => toggleBtn.style.backgroundColor = isRunning ? '#ef4444' : '#3b82f6';
-  
+
   toggleBtn.onclick = () => {
     browser.runtime.sendMessage({ action: isRunning ? 'stop' : 'start' });
   };
-  
+
   controls.appendChild(toggleBtn);
   pageOverlayEl.appendChild(controls);
 
@@ -833,7 +889,7 @@ browser.storage.onChanged.addListener((changes) => {
   if (changes.startTime && changes.startTime.newValue) {
     globalStartTime = changes.startTime.newValue;
   }
-  
+
   if (changes.runMode && changes.runMode.newValue) {
     currentRunMode = changes.runMode.newValue;
   }
@@ -846,6 +902,16 @@ browser.storage.onChanged.addListener((changes) => {
 
   if (changes.items) {
     currentOverlayItems = changes.items.newValue || [];
+    needsOverlayUpdate = true;
+  }
+
+  if (changes.presets) {
+    overlayPresets = changes.presets.newValue || [];
+    needsOverlayUpdate = true;
+  }
+
+  if (changes.currentPresetId) {
+    overlayCurrentPresetId = changes.currentPresetId.newValue || 'default';
     needsOverlayUpdate = true;
   }
 
@@ -907,7 +973,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 
-browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 'interval', 'startTime', 'runMode', 'activeSequenceItemId', 'activeSequenceItemStart']).then((res) => {
+browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 'interval', 'startTime', 'runMode', 'activeSequenceItemId', 'activeSequenceItemStart', 'presets', 'currentPresetId']).then((res) => {
   currentOverlayItems = res.items || [];
   const domains = res.overlayDomains || {};
   isOverlayVisible = domains[window.location.hostname] === true;
@@ -916,6 +982,8 @@ browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 
   currentRunMode = res.runMode || 'sequence';
   activeSequenceItemId = res.activeSequenceItemId || null;
   activeSequenceItemStart = res.activeSequenceItemStart || 0;
+  overlayPresets = res.presets || [];
+  overlayCurrentPresetId = res.currentPresetId || 'default';
 
   if (res.autoStart) {
     const activeItems = currentOverlayItems.filter(item => item.enabled && canProcessItem(item));
@@ -933,6 +1001,6 @@ browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 
       browser.storage.local.set({ isRunning: false });
     }
   }
-  
+
   updatePageOverlay();
 });
