@@ -34,11 +34,9 @@ const presetActionsBlock = document.getElementById('presetActionsBlock');
 
 const exportSinglePresetBtn = document.getElementById('exportSinglePresetBtn');
 const importSinglePresetBtn = document.getElementById('importSinglePresetBtn');
-const importSinglePresetInput = document.getElementById('importSinglePresetInput');
 
 const exportPresetBtn = document.getElementById('exportPresetBtn');
 const importPresetBtn = document.getElementById('importPresetBtn');
-const importPresetInput = document.getElementById('importPresetInput');
 
 const presetPromptDiv = document.getElementById('presetPromptDiv');
 const presetNameInput = document.getElementById('presetNameInput');
@@ -656,57 +654,17 @@ exportSinglePresetBtn.addEventListener('click', () => {
   setTimeout(() => exportSinglePresetBtn.textContent = oldTxt, 1500);
 });
 
+const openImportWindow = (type) => {
+  browser.windows.create({
+    url: browser.runtime.getURL(`import_portal.html?type=${type}`),
+    type: "popup",
+    width: 520,
+    height: 300
+  });
+}
+
 importSinglePresetBtn.addEventListener('click', () => {
-  importSinglePresetInput.click();
-});
-
-importSinglePresetInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (evt) {
-    try {
-      const parsed = JSON.parse(evt.target.result);
-      if (parsed && parsed.id && parsed.name && Array.isArray(parsed.items)) {
-        parsed.id = Date.now().toString(); // Ensure unique ID
-
-        let newName = parsed.name;
-        // Basic duplicate name collision resolution
-        let copyNum = 1;
-        while (presets.some(p => p.name === newName)) {
-          newName = `${parsed.name} (${copyNum})`;
-          copyNum++;
-        }
-        parsed.name = newName;
-
-        presets.push(parsed);
-        currentPresetId = parsed.id;
-
-        stopClicker();
-        savePresets();
-        renderPresets();
-
-        items = JSON.parse(JSON.stringify(parsed.items));
-        saveItems();
-        renderList();
-
-        if (parsed.runMode) {
-          runModeSelect.value = parsed.runMode;
-          browser.storage.local.set({ runMode: parsed.runMode });
-        }
-
-        const oldTxt = importSinglePresetBtn.textContent;
-        importSinglePresetBtn.textContent = 'Imported!';
-        setTimeout(() => importSinglePresetBtn.textContent = oldTxt, 1500);
-      } else {
-        alert("Invalid single preset file format.");
-      }
-    } catch (err) {
-      alert("Invalid JSON file");
-    }
-  };
-  reader.readAsText(file);
-  importSinglePresetInput.value = '';
+  openImportWindow("single");
 });
 
 exportPresetBtn.addEventListener('click', () => {
@@ -723,32 +681,9 @@ exportPresetBtn.addEventListener('click', () => {
   setTimeout(() => exportPresetBtn.textContent = oldTxt, 1500);
 });
 
-importPresetBtn.addEventListener('click', () => {
-  importPresetInput.click();
-});
 
-importPresetInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (evt) {
-    try {
-      const parsed = JSON.parse(evt.target.result);
-      if (Array.isArray(parsed)) {
-        presets = parsed;
-        currentPresetId = 'default';
-        savePresets();
-        renderPresets();
-        const oldTxt = importPresetBtn.textContent;
-        importPresetBtn.textContent = 'Imported!';
-        setTimeout(() => importPresetBtn.textContent = oldTxt, 1500);
-      }
-    } catch (err) {
-      alert("Invalid JSON file");
-    }
-  };
-  reader.readAsText(file);
-  importPresetInput.value = ''; // Reset input to allow re-importing the same actual file natively
+importPresetBtn.addEventListener('click', () => {
+  openImportWindow("all");
 });
 
 newPresetBtn.addEventListener('click', () => {

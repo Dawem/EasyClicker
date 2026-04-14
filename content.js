@@ -453,6 +453,7 @@ let overlayCurrentPresetId = 'default';
 
 let overlayPosX = -1;
 let overlayPosY = -1;
+let overlayPositions = {};
 
 function generateConciseTitle(item, fullSel) {
   if (item.targetText) {
@@ -600,6 +601,9 @@ function initDrag(headerEl, containerEl) {
       isDragging = false;
       document.body.style.userSelect = '';
       enforceOverlayBounds();
+      
+      overlayPositions[window.location.hostname] = { x: overlayPosX, y: overlayPosY };
+      browser.storage.local.set({ overlayPositions });
     }
   });
 }
@@ -915,6 +919,19 @@ browser.storage.onChanged.addListener((changes) => {
     needsOverlayUpdate = true;
   }
 
+  if (changes.overlayPositions) {
+    overlayPositions = changes.overlayPositions.newValue || {};
+    const pos = overlayPositions[window.location.hostname];
+    if (pos) {
+      overlayPosX = pos.x;
+      overlayPosY = pos.y;
+      if (pageOverlayEl) {
+        pageOverlayEl.style.left = overlayPosX + 'px';
+        pageOverlayEl.style.top = overlayPosY + 'px';
+      }
+    }
+  }
+
   if (changes.overlayDomains) {
     const domains = changes.overlayDomains.newValue || {};
     isOverlayVisible = domains[window.location.hostname] === true;
@@ -973,7 +990,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 
-browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 'interval', 'startTime', 'runMode', 'activeSequenceItemId', 'activeSequenceItemStart', 'presets', 'currentPresetId']).then((res) => {
+browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 'interval', 'startTime', 'runMode', 'activeSequenceItemId', 'activeSequenceItemStart', 'presets', 'currentPresetId', 'overlayPositions']).then((res) => {
   currentOverlayItems = res.items || [];
   const domains = res.overlayDomains || {};
   isOverlayVisible = domains[window.location.hostname] === true;
@@ -984,6 +1001,13 @@ browser.storage.local.get(['isRunning', 'autoStart', 'items', 'overlayDomains', 
   activeSequenceItemStart = res.activeSequenceItemStart || 0;
   overlayPresets = res.presets || [];
   overlayCurrentPresetId = res.currentPresetId || 'default';
+  overlayPositions = res.overlayPositions || {};
+
+  const savedPos = overlayPositions[window.location.hostname];
+  if (savedPos) {
+    overlayPosX = savedPos.x;
+    overlayPosY = savedPos.y;
+  }
 
   if (res.autoStart) {
     const activeItems = currentOverlayItems.filter(item => item.enabled && canProcessItem(item));

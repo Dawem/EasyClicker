@@ -3,7 +3,7 @@
   "name": "Easy Clicker",
   "version": "1.26",
   "description": "Auto-click an element based on a CSS selector and interval.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "tabs"],
   "icons": {
     "48": "icon-48.png",
     "128": "icon-128.png"
