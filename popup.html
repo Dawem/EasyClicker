@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --surface-color: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-primary: #3b82f6;
+      --accent-primary-hover: #2563eb;
+      --accent-danger: #ef4444;
+      --accent-danger-hover: #dc2626;
+      --border-color: #334155;
+    }
+
+    html {
+      overflow: hidden;
+    }
+
+    body {
+      width: 340px;
+      max-height: 580px;
+      margin: 0;
+      padding: 16px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    .header {
+      margin-bottom: 12px;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .tooltip-wrapper {
+      position: relative;
+      display: inline-flex;
+      margin-left: 6px;
+    }
+
+    .tooltip-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: var(--border-color);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: help;
+      transition: all 0.2s;
+    }
+
+    .tooltip-icon:hover {
+      background-color: var(--accent-primary);
+      color: white;
+    }
+
+    .tooltip-text {
+      position: absolute;
+      bottom: 140%;
+      left: 50%;
+      transform: translateX(-50%) translateY(5px);
+      width: max-content;
+      max-width: 180px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 400;
+      text-align: center;
+      line-height: 1.3;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      z-index: 100;
+    }
+
+    .tooltip-text::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px;
+      border-style: solid;
+      border-color: var(--border-color) transparent transparent transparent;
+    }
+
+    .tooltip-wrapper:hover .tooltip-text {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Fixed alignment tooltips ensuring they never break the horizontal boundary */
+    .tooltip-wrapper.align-right .tooltip-text {
+      left: auto;
+      right: -10px;
+      transform: translateY(5px);
+    }
+
+    .tooltip-wrapper.align-right:hover .tooltip-text {
+      transform: translateY(0);
+    }
+
+    .tooltip-wrapper.align-right .tooltip-text::after {
+      left: auto;
+      right: 12px;
+      transform: none;
+    }
+
+    .tooltip-wrapper.align-left .tooltip-text {
+      left: -10px;
+      transform: translateY(5px);
+    }
+
+    .tooltip-wrapper.align-left:hover .tooltip-text {
+      transform: translateY(0);
+    }
+
+    .tooltip-wrapper.align-left .tooltip-text::after {
+      left: 12px;
+      transform: none;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s ease;
+      appearance: none;
+    }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px top 50%;
+      background-size: 10px auto;
+      padding-right: 28px;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .add-section {
+      background: var(--surface-color);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    button {
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+      outline: none;
+    }
+
+    .form-btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    #addUpdateBtn {
+      flex: 1;
+      padding: 8px;
+      background-color: var(--accent-primary);
+    }
+
+    #addUpdateBtn:hover {
+      background-color: var(--accent-primary-hover);
+    }
+
+    #addUpdateBtn.edit-mode {
+      background-color: #f59e0b;
+    }
+
+    #addUpdateBtn.edit-mode:hover {
+      background-color: #d97706;
+    }
+
+    #cancelFormBtn {
+      flex: 1;
+      padding: 8px;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    #cancelFormBtn:hover {
+      background-color: var(--border-color);
+    }
+
+    .list-section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      margin-bottom: 12px;
+    }
+
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      margin-bottom: 4px;
+    }
+
+    .list-header>label {
+      margin-bottom: 0;
+    }
+
+    .filter-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-wrapper label {
+      font-size: 10px;
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .filter-wrapper input[type="checkbox"] {
+      cursor: pointer;
+      margin: 0;
+    }
+
+    #elementList {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--surface-color);
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
+    }
+
+    #elementList::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #elementList::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #elementList::-webkit-scrollbar-thumb {
+      background-color: var(--border-color);
+      border-radius: 6px;
+    }
+
+    .element-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+      gap: 10px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent-primary);
+      width: 0%;
+    }
+
+    .progress-bar.fast-mode {
+      width: 100% !important;
+      background: linear-gradient(90deg, var(--accent-primary) 0%, #e71c4f 50%, var(--accent-primary) 100%);
+      background-size: 200% 100%;
+      animation: wave 1s linear infinite;
+    }
+
+    @keyframes wave {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: 0 0;
+      }
+    }
+
+    .element-item:last-child {
+      border-bottom: none;
+    }
+
+    .item-checkbox {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .item-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .item-selector {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .match-badge {
+      font-size: 9px;
+      background: var(--border-color);
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-left: 6px;
+      color: var(--text-main);
+      text-transform: capitalize;
+    }
+
+    .item-text {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      padding: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+    }
+
+    .icon-btn.primary {
+      color: var(--accent-primary);
+    }
+
+    .icon-btn.primary:hover {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-color);
+      color: var(--text-main);
+    }
+
+    .icon-btn.danger:hover {
+      color: var(--accent-danger);
+    }
+
+    .main-controls {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .main-controls button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .shortcut {
+      font-size: 9px;
+      opacity: 0.7;
+      font-weight: 400;
+    }
+
+    #start {
+      background-color: var(--accent-primary);
+    }
+
+    #start:hover {
+      background-color: var(--accent-primary-hover);
+    }
+
+    #stop {
+      background-color: var(--accent-danger);
+    }
+
+    #stop:hover {
+      background-color: var(--accent-danger-hover);
+    }
+
+    .error {
+      color: var(--accent-danger);
+      font-size: 11px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .flex-row .field {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #mainView,
+    #settingsView {
+      position: relative;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <h1>Easy Clicker</h1>
+    </div>
+    <div style="display:flex; gap:6px; align-items: center;">
+      <button id="toggleFormBtn" class="icon-btn primary"
+        style="height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; gap: 4px; padding: 0 10px; font-weight: 600; border: 1px solid var(--border-color); background: var(--surface-color);">
+        + Add Element
+      </button>
+      <button id="settingsBtn" class="icon-btn" title="Settings"
+        style="height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); background: var(--surface-color); padding: 0 8px; font-size: 14px;">⚙️</button>
+      <a href="https://github.com/Dawem/EasyClicker" target="_blank" title="View Source on GitHub"
+        onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'"
+        style="display: flex; align-items: center; justify-content: center; padding: 4px; color: var(--text-muted); text-decoration: none; transition: all 0.2s;">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+          </path>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <div id="settingsView" style="display: none; flex-direction: column; flex: 1; padding: 2px 0 0 0; gap: 12px;">
+
+    <div
+      style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+      <div
+        style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+        ⚙️ Execution
+      </div>
+
+      <div class="field" style="margin-bottom: 12px;">
+        <label for="interval" style="margin-bottom: 6px; font-size: 12px;">
+          Global Wait Time (s)
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">Default delay or interval used when clicking elements.</div>
+          </div>
+        </label>
+        <input type="number" id="interval" min="0.1" step="0.1" placeholder="e.g. 1.5"
+          style="width: 100%; box-sizing: border-box; height: 30px;">
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed var(--border-color); padding: 12px 0;">
+        <input type="checkbox" id="autoStart"
+          style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0;">
+        <label for="autoStart"
+          style="margin: 0; font-weight: 500; cursor: pointer; font-size: 12px; color: var(--text-main); display: inline-flex; align-items: center; justify-content: space-between; flex: 1;">
+          Auto-start on page load
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the clicker automatically runs when a page
+              matching active items loads.</div>
+          </div>
+        </label>
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
+        <input type="checkbox" id="filterDomain" checked
+          style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0;">
+        <label for="filterDomain"
+          style="margin: 0; font-weight: 500; cursor: pointer; font-size: 12px; color: var(--text-main); display: inline-flex; align-items: center; justify-content: space-between; flex: 1;">
+          Show current tab only
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the elements list will only show items matching
+              the current active tab.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div
+      style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+      <div
+        style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          📂 Presets
+        </div>
+        <div class="tooltip-wrapper align-right">
+          <span class="tooltip-icon">?</span>
+          <div class="tooltip-text" style="width: 180px; font-weight: normal;">Save your active element list, run mode,
+            and execution configuration into a preset for future use.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-bottom: 8px;">
+        <select id="presetSelect"
+          style="flex:1; height:30px; font-size: 12px; background-color: var(--bg-color);"></select>
+        <button id="newPresetBtn" title="Create New Preset" class="icon-btn"
+          style="width:30px; height:30px; padding:0; justify-content:center; border:1px solid var(--border-color); border-radius:6px; background:var(--surface-color); font-size:18px;">+</button>
+      </div>
+
+      <div id="presetActionsBlock" style="display:none; gap:6px;">
+        <button id="renamePresetBtn" class="icon-btn" title="Rename Preset"
+          style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">Rename</button>
+        <button id="deletePresetBtn" class="icon-btn danger" title="Delete Preset"
+          style="width:30px; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background:var(--surface-color); font-size: 11px;">✕</button>
+      </div>
+
+      <div id="presetPromptDiv"
+        style="display:none; margin-top: 8px; gap: 6px; flex-direction:column; padding: 10px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px;">
+        <input type="text" id="presetNameInput" placeholder="Enter preset name..."
+          style="padding: 6px 8px; height: 30px; font-size:12px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+        <div style="display:flex; gap: 6px;">
+          <button id="presetConfirmBtn"
+            style="flex:1; padding: 6px; background-color: var(--accent-primary); font-size:11px; border-radius: 4px;">Submit</button>
+          <button id="presetCancelBtn"
+            style="flex:1; padding: 6px; background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size:11px; border-radius: 4px;">Cancel</button>
+        </div>
+      </div>
+
+      <div id="presetTransferBlock" style="display:flex; flex-direction:column; gap:6px; margin-top: 8px;">
+        <div style="display:flex; gap:6px;">
+          <button id="exportSinglePresetBtn" class="icon-btn" title="Export Active Preset"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Export
+            Preset</button>
+          <button id="importSinglePresetBtn" class="icon-btn" title="Import Single Preset"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Import
+            Preset</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button id="exportPresetBtn" class="icon-btn" title="Export All Presets"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Export
+            All Presets</button>
+          <button id="importPresetBtn" class="icon-btn" title="Import All Presets"
+            style="flex:1; justify-content:center; border:1px solid var(--border-color); border-radius:4px; padding: 6px; background: var(--surface-color); font-size: 11px; color: var(--text-main);">Import
+            All Presets</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="settingsBackBtn"
+      style="margin-top: 2px; height: 34px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; cursor: pointer; border-radius: 6px; font-weight: 500;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back to Dashboard
+    </button>
+  </div>
+
+  <div id="mainView" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+    <div class="add-section" id="addSection" style="display: none;">
+      <input type="hidden" id="editId">
+
+      <div class="field">
+        <label for="customName">
+          Custom Name (Optional)
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">A custom display name for this element in the list.</div>
+          </div>
+        </label>
+        <input type="text" id="customName" placeholder="e.g. Buy Button">
+      </div>
+
+      <div class="flex-row">
+        <div class="field">
+          <label for="elementType">
+            Element Type
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Select the HTML tag of the element to click, or 'Any' for a custom selector.
+              </div>
+            </div>
+          </label>
+          <select id="elementType">
+            <option value="any">Any CSS Selector</option>
+            <option value="button">Button (button)</option>
+            <option value="a">Link (a)</option>
+            <option value="div">Div (div)</option>
+            <option value="span">Span (span)</option>
+            <option value="input">Input (input)</option>
+            <option value="img">Image (img)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="matchType">
+            Match Elements
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Choose whether to click the first, last, or all elements matching the criteria.
+              </div>
+            </div>
+          </label>
+          <select id="matchType">
+            <option value="first">First</option>
+            <option value="last">Last</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
+          <label for="selector" style="margin-bottom: 0;">
+            CSS Selector
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">The exact CSS selector. Required if 'Any CSS Selector' is selected.</div>
+            </div>
+          </label>
+          <div class="tooltip-wrapper align-right" style="display: flex;">
+            <button id="pickBtn" type="button"
+              style="background: var(--surface-color); color: var(--text-main); font-size: 10px; padding: 2px 6px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 4px; border-radius: 4px; transition: all 0.2s; cursor: pointer;">
+              Element Picker
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+            </button>
+            <div class="tooltip-text"
+              style="width: 175px; text-align: left; padding: 6px 8px; font-weight: normal; bottom: 120%;">
+              <b style="color: var(--accent-primary);">How to use:</b><br />
+              1. Click this button<br />
+              2. The popup will close<br />
+              3. Hover an element on page<br />
+              4. Click it to save selector<br />
+              5. The popup will reopen<br />
+              6. Click "Add Element" to save<br />
+            </div>
+          </div>
+        </div>
+        <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" autocomplete="off">
+        <div id="selectorError" class="error">CSS Selector is required for "Any CSS Selector".</div>
+      </div>
+
+      <div class="field">
+        <label for="targetText">
+          Target Text (Optional)
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">Only click elements that contain this exact text within them.</div>
+          </div>
+        </label>
+        <input type="text" id="targetText" placeholder="e.g. Add to Cart">
+      </div>
+
+      <div class="flex-row">
+        <div class="field">
+          <label for="matchPattern">
+            Domain Pattern
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Only click elements if the URL matches this pattern. Leave Empty to match all
+                URLs. Use * for placeholders (e.g. *://*.example.com/*).</div>
+            </div>
+          </label>
+          <input type="text" id="matchPattern" placeholder="e.g. *://*.example.com/*">
+        </div>
+
+        <div class="field" style="flex: 0 0 100px;">
+          <label for="itemInterval">
+            Speed (s)
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Custom interval. Leave empty for Global.</div>
+            </div>
+          </label>
+          <input type="number" id="itemInterval" min="0.1" step="0.1" placeholder="Global">
+        </div>
+      </div>
+
+      <div class="form-btn-group">
+        <button id="addUpdateBtn">Add Element</button>
+        <button id="cancelFormBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div id="dashboardView" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+      <div class="list-section">
+        <div id="elementList"></div>
+      </div>
+
+      <div class="field" style="margin-bottom: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <label for="runMode" style="margin-bottom: 0;">Run Mode</label>
+          <div class="tooltip-wrapper align-left" style="margin-left: -2px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width:140px;">Sequence: runs items logically from top to
+              bottom.<br><br>Parallel: independent running timers.</div>
+          </div>
+          <select id="runMode" style="flex: 1; height: 28px; padding: 2px 6px;">
+            <option value="sequence">Sequenced</option>
+            <option value="parallel">Parallel</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 12px; border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <label style="margin: 0; white-space: nowrap;">Active Preset</label>
+          <select id="presetSelectDashboard" style="flex: 1; height: 28px; padding: 2px 6px;"></select>
+        </div>
+      </div>
+
+      <div class="main-controls" style="display: flex; gap: 8px;">
+        <button id="toggleStartStopBtn"
+          style="flex: 1; padding: 8px; background-color: var(--accent-primary); font-size: 11px; font-weight: bold; transition: all 0.2s;">
+          Start
+        </button>
+        <button id="openOverlayBtn"
+          style="flex: 1; padding: 8px; background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-main); font-size: 11px;">
+          Open Page Overlay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

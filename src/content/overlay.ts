@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
-import { ClickItem, Preset } from '../shared/types';
-import { generateConciseTitle } from '../shared/utils';
+import { ClickItem, Preset } from './types';
+import { generateConciseTitle } from './utils';
 
 let pageOverlayEl: HTMLElement | null = null;
 let overlayPosX = -1;
@@ -10,10 +10,7 @@ let isPinnedRight = false;
 let isPinnedBottom = false;
 
 export function initDrag(header: HTMLElement, container: HTMLElement) {
-  let pos1 = 0,
-    pos2 = 0,
-    pos3 = 0,
-    pos4 = 0;
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   header.onmousedown = dragMouseDown;
 
   function dragMouseDown(e: MouseEvent) {
@@ -37,10 +34,10 @@ export function initDrag(header: HTMLElement, container: HTMLElement) {
 
     container.style.top = newTop + 'px';
     container.style.left = newLeft + 'px';
-
+    
     overlayPosX = newLeft;
     overlayPosY = newTop;
-
+    
     enforceOverlayBounds();
   }
 
@@ -48,7 +45,7 @@ export function initDrag(header: HTMLElement, container: HTMLElement) {
     document.onmouseup = null;
     document.onmousemove = null;
     if (header.classList.contains('ec-header')) header.classList.remove('grabbing');
-
+    
     browser.storage.local.set({ overlayPosX, overlayPosY });
   }
 }
@@ -57,7 +54,7 @@ export function enforceOverlayBounds() {
   if (!pageOverlayEl) return;
   const rect = pageOverlayEl.getBoundingClientRect();
   const pad = 10;
-
+  
   let top = pageOverlayEl.offsetTop;
   let left = pageOverlayEl.offsetLeft;
 
@@ -68,20 +65,20 @@ export function enforceOverlayBounds() {
 
   pageOverlayEl.style.top = top + 'px';
   pageOverlayEl.style.left = left + 'px';
-
-  isPinnedRight = left + rect.width > window.innerWidth - 50;
-  isPinnedBottom = top + rect.height > window.innerHeight - 50;
+  
+  isPinnedRight = (left + rect.width > window.innerWidth - 50);
+  isPinnedBottom = (top + rect.height > window.innerHeight - 50);
 
   if (isPinnedRight) {
     pageOverlayEl.style.left = 'auto';
-    pageOverlayEl.style.right = window.innerWidth - (left + rect.width) + 'px';
+    pageOverlayEl.style.right = (window.innerWidth - (left + rect.width)) + 'px';
   } else {
     pageOverlayEl.style.right = 'auto';
   }
-
+  
   if (isPinnedBottom) {
     pageOverlayEl.style.top = 'auto';
-    pageOverlayEl.style.bottom = window.innerHeight - (top + rect.height) + 'px';
+    pageOverlayEl.style.bottom = (window.innerHeight - (top + rect.height)) + 'px';
   } else {
     pageOverlayEl.style.bottom = 'auto';
   }
@@ -97,12 +94,12 @@ window.addEventListener('resize', () => {
 });
 
 export function updateProgressBars(
-  isRunning: boolean,
-  mode: 'sequence' | 'parallel',
-  activeSequenceItemId: string | null,
+  isRunning: boolean, 
+  mode: 'sequence' | 'parallel', 
+  activeSequenceItemId: string | null, 
   activeSequenceItemStart: number,
   globalStartTime: number,
-  globalInterval: number,
+  globalInterval: number
 ) {
   if (!pageOverlayEl || !isRunning) return;
   const now = Date.now();
@@ -157,12 +154,12 @@ export function toggleOverlay(visible: boolean) {
 }
 
 export function updateOverlay(
-  items: ClickItem[],
-  presets: Preset[],
-  currentPresetId: string,
-  isRunning: boolean,
+  items: ClickItem[], 
+  presets: Preset[], 
+  currentPresetId: string, 
+  isRunning: boolean, 
   globalInterval: number,
-  canProcessItem: (item: ClickItem) => boolean,
+  canProcessItem: (item: ClickItem) => boolean
 ) {
   if (!isOverlayVisible) return;
 
@@ -225,8 +222,9 @@ export function updateOverlay(
       const itemRow = document.createElement('div');
       itemRow.className = 'ec-item-row';
 
-      const itemIntervalMs =
-        item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : globalInterval * 1000;
+      const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval)) 
+        ? parseFloat(item.interval) * 1000 
+        : globalInterval * 1000;
       itemRow.dataset.intervalMs = itemIntervalMs.toString();
       itemRow.dataset.itemId = item.id;
 
@@ -327,7 +325,7 @@ export function updateOverlay(
 
   controls.appendChild(toggleBtn);
   pageOverlayEl.appendChild(controls);
-
+  
   // Update drag bounds initially
   enforceOverlayBounds();
 }

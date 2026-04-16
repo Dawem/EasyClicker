@@ -17,22 +17,18 @@ def clean_dist():
     os.makedirs(FIREFOX_DIR)
 
 def copy_project_files(dest_dir):
-    # Copy manifest and icons
-    shutil.copy2(os.path.join(SRC_DIR, "manifest.json"), os.path.join(dest_dir, "manifest.json"))
-    
-    # Copy assets
-    assets_dir = os.path.join(SRC_DIR, "assets")
-    if os.path.exists(assets_dir):
-        for item in os.listdir(assets_dir):
-            shutil.copy2(os.path.join(assets_dir, item), os.path.join(dest_dir, item))
-
-    # Copy static files from src recursively, flattening them to root
-    src_dir = os.path.join(SRC_DIR, "src")
-    if os.path.exists(src_dir):
-        for root, dirs, files in os.walk(src_dir):
-            for file in files:
-                if file.endswith(('.html', '.css', '.png', '.jpg', '.svg')):
-                    shutil.copy2(os.path.join(root, file), os.path.join(dest_dir, file))
+    ignore_items = {'.git', '.vscode', 'dist', 'build.py', 'node_modules', '__pycache__', 'compiled', 'types.ts', 'tsconfig.json', 'package.json', 'package-lock.json'}
+    for item in os.listdir(SRC_DIR):
+        if item in ignore_items or item.endswith('.md') or item.endswith('.pem') or item.endswith('.gitignore') or item.endswith('.ts'):
+            continue
+        
+        s = os.path.join(SRC_DIR, item)
+        d = os.path.join(dest_dir, item)
+        
+        if os.path.isdir(s):
+            shutil.copytree(s, d)
+        else:
+            shutil.copy2(s, d)
     
     # Copy compiled JS files
     compiled_dir = os.path.join(SRC_DIR, "compiled")

@@ -1,13 +1,13 @@
-import { ClickItem, Preset } from '../shared/types';
-import { generateConciseTitle, matchPatternToRegExp } from '../shared/utils';
+import { ClickItem, Preset } from './types';
+import { generateConciseTitle, matchPatternToRegExp } from './utils';
 
 export function createListItem(
-  item: ClickItem,
-  globalInterval: number,
+  item: ClickItem, 
+  globalInterval: number, 
   onToggle: (id: string, enabled: boolean) => void,
   onEdit: (item: ClickItem) => void,
   onCopy: (item: ClickItem) => void,
-  onDelete: (id: string) => void,
+  onDelete: (id: string) => void
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = 'element-item';
@@ -93,16 +93,16 @@ export function createListItem(
 
 export function renderList(
   elementList: HTMLElement,
-  items: ClickItem[],
+  items: ClickItem[], 
   globalInterval: number,
-  filterCurrent: boolean,
+  filterCurrent: boolean, 
   currentTabUrl: string,
   callbacks: {
-    onToggle: (id: string, enabled: boolean) => void;
-    onEdit: (item: ClickItem) => void;
-    onCopy: (item: ClickItem) => void;
-    onDelete: (id: string) => void;
-  },
+    onToggle: (id: string, enabled: boolean) => void,
+    onEdit: (item: ClickItem) => void,
+    onCopy: (item: ClickItem) => void,
+    onDelete: (id: string) => void
+  }
 ) {
   elementList.innerHTML = '';
 
@@ -129,14 +129,23 @@ export function renderList(
   }
 
   renderableItems.forEach((item) => {
-    elementList.appendChild(
-      createListItem(item, globalInterval, callbacks.onToggle, callbacks.onEdit, callbacks.onCopy, callbacks.onDelete),
-    );
+    elementList.appendChild(createListItem(
+      item, 
+      globalInterval, 
+      callbacks.onToggle, 
+      callbacks.onEdit, 
+      callbacks.onCopy, 
+      callbacks.onDelete
+    ));
   });
 }
 
-export function renderPresets(selects: HTMLSelectElement[], presets: Preset[], currentPresetId: string) {
-  selects.forEach((select) => {
+export function renderPresets(
+  selects: HTMLSelectElement[], 
+  presets: Preset[], 
+  currentPresetId: string
+) {
+  selects.forEach(select => {
     select.innerHTML = '';
     if (presets.length === 0) {
       const noOpt = document.createElement('option');

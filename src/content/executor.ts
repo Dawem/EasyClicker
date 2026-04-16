@@ -1,4 +1,4 @@
-import { ClickItem } from '../shared/types';
+import { ClickItem } from './types';
 
 let isRunning = false;
 let itemIntervalIds: number[] = [];
@@ -69,8 +69,9 @@ export function startClicker(items: ClickItem[], mode: 'sequence' | 'parallel', 
 
       clickElement(item);
 
-      const delay =
-        item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : interval * 1000;
+      const delay = item.interval && !isNaN(parseFloat(item.interval)) 
+        ? parseFloat(item.interval) * 1000 
+        : interval * 1000;
 
       currentIndex = (currentIndex + 1) % activeItems.length;
       itemIntervalIds.push(window.setTimeout(runNext, delay) as unknown as number);
@@ -79,9 +80,10 @@ export function startClicker(items: ClickItem[], mode: 'sequence' | 'parallel', 
     runNext();
   } else {
     activeItems.forEach((item) => {
-      const delay =
-        item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : interval * 1000;
-
+      const delay = item.interval && !isNaN(parseFloat(item.interval)) 
+        ? parseFloat(item.interval) * 1000 
+        : interval * 1000;
+        
       const id = window.setInterval(() => clickElement(item), delay) as unknown as number;
       itemIntervalIds.push(id);
     });
@@ -95,6 +97,6 @@ export function getExecutionState() {
     activeSequenceItemStart,
     globalStartTime,
     currentRunMode,
-    globalInterval,
+    globalInterval
   };
 }

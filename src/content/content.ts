@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
-import { ClickItem, Preset, StorageData } from '../shared/types';
-import { matchPatternToRegExp } from '../shared/utils';
+import { ClickItem, Preset, StorageData } from './types';
+import { matchPatternToRegExp } from './utils';
 import { startPicking } from './picker';
 import { startClicker, stopClicker, getExecutionState } from './executor';
 import { updateOverlay, toggleOverlay, updateProgressBars, setOverlayCoords } from './overlay';
@@ -31,7 +31,7 @@ function processProgressBars() {
     state.activeSequenceItemId,
     state.activeSequenceItemStart,
     state.globalStartTime,
-    state.globalInterval,
+    state.globalInterval
   );
   rafId = requestAnimationFrame(processProgressBars);
 }
@@ -59,7 +59,7 @@ async function init() {
   if (isRunning) {
     startClicker(currentItems, runMode, globalInterval);
   }
-
+  
   if (rafId) cancelAnimationFrame(rafId);
   processProgressBars();
 }

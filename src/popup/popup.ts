@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
-import { ClickItem, Preset, StorageData } from '../shared/types';
-import { getRequiredElement } from '../shared/utils';
+import { ClickItem, Preset, StorageData } from './types';
+import { matchPatternToRegExp, getRequiredElement } from './utils';
 import { renderList, renderPresets } from './popup_ui';
 
 const addSection = getRequiredElement<HTMLElement>('addSection');
@@ -32,6 +32,8 @@ const deletePresetBtn = getRequiredElement<HTMLButtonElement>('deletePresetBtn')
 const renamePresetBtn = getRequiredElement<HTMLButtonElement>('renamePresetBtn');
 const presetActionsBlock = getRequiredElement<HTMLElement>('presetActionsBlock');
 
+const exportSinglePresetBtn = getRequiredElement<HTMLButtonElement>('exportSinglePresetBtn');
+const importSinglePresetBtn = getRequiredElement<HTMLButtonElement>('importSinglePresetBtn');
 const exportPresetBtn = getRequiredElement<HTMLButtonElement>('exportPresetBtn');
 const importPresetBtn = getRequiredElement<HTMLButtonElement>('importPresetBtn');
 
@@ -64,7 +66,7 @@ function toggleSelectorPlaceholder() {
   if (elementTypeObj.value === 'any') {
     selectorInput.placeholder = "e.g. .buy-btn or [name='submit']";
   } else {
-    selectorInput.placeholder = 'Optional: .classname or #id';
+    selectorInput.placeholder = "Optional: .classname or #id";
   }
 }
 
@@ -150,7 +152,7 @@ function saveItems() {
 function syncList() {
   renderList(elementList, items, globalInterval, filterDomainCheckbox.checked, currentTabUrl, {
     onToggle: (id, enabled) => {
-      const item = items.find((i) => i.id === id);
+      const item = items.find(i => i.id === id);
       if (item) item.enabled = enabled;
       saveItems();
     },
@@ -183,7 +185,7 @@ function syncList() {
       if (editIdInput.value === id) closeForm();
       saveItems();
       syncList();
-    },
+    }
   });
 }
 
@@ -240,16 +242,16 @@ elementList.addEventListener('drop', (e: DragEvent) => {
     if (targetEl && targetEl !== dragSourceEl) {
       const rect = targetEl.getBoundingClientRect();
       const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
-
+      
       const sourceId = dragSourceEl.dataset.itemId;
       const targetId = targetEl.dataset.itemId;
-
-      const sourceIndex = items.findIndex((i) => i.id === sourceId);
-      const targetIndex = items.findIndex((i) => i.id === targetId);
-
+      
+      const sourceIndex = items.findIndex(i => i.id === sourceId);
+      const targetIndex = items.findIndex(i => i.id === targetId);
+      
       if (sourceIndex > -1 && targetIndex > -1) {
         const [removed] = items.splice(sourceIndex, 1);
-        const newIndex = next ? targetIndex : targetIndex > sourceIndex ? targetIndex - 1 : targetIndex;
+        const newIndex = next ? targetIndex : (targetIndex > sourceIndex ? targetIndex - 1 : targetIndex);
         items.splice(newIndex, 0, removed);
         saveItems();
         syncList();
@@ -276,26 +278,24 @@ cancelFormBtn.addEventListener('click', closeForm);
 elementTypeObj.addEventListener('change', toggleSelectorPlaceholder);
 
 pickBtn.addEventListener('click', () => {
-  browser.storage.local
-    .set({
-      draftItem: {
-        type: elementTypeObj.value,
-        matchType: matchTypeObj.value,
-        customName: customNameInput.value,
-        targetText: targetTextInput.value,
-        matchPattern: matchPatternInput.value,
-        interval: itemIntervalInput.value,
-        editId: editIdInput.value,
-      },
-    })
-    .then(() => {
-      browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-        if (tabs.length > 0 && tabs[0].id !== undefined) {
-          browser.tabs.sendMessage(tabs[0].id, { action: 'startPicking' }).catch(() => {});
-        }
-        window.close();
-      });
+  browser.storage.local.set({
+    draftItem: {
+      type: elementTypeObj.value,
+      matchType: matchTypeObj.value,
+      customName: customNameInput.value,
+      targetText: targetTextInput.value,
+      matchPattern: matchPatternInput.value,
+      interval: itemIntervalInput.value,
+      editId: editIdInput.value,
+    },
+  }).then(() => {
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs.length > 0 && tabs[0].id !== undefined) {
+        browser.tabs.sendMessage(tabs[0].id, { action: 'startPicking' }).catch(() => {});
+      }
+      window.close();
     });
+  });
 });
 
 addUpdateBtn.addEventListener('click', () => {
@@ -321,13 +321,7 @@ addUpdateBtn.addEventListener('click', () => {
   } else {
     items.push({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      type,
-      selector,
-      matchType,
-      customName,
-      targetText,
-      matchPattern,
-      interval,
+      type, selector, matchType, customName, targetText, matchPattern, interval,
       enabled: true,
     });
   }
@@ -369,7 +363,7 @@ newPresetBtn.addEventListener('click', () => {
 
 renamePresetBtn.addEventListener('click', () => {
   if (currentPresetId === 'default') return;
-  const p = presets.find((x) => x.id === currentPresetId);
+  const p = presets.find(x => x.id === currentPresetId);
   if (!p) return;
   isRenaming = true;
   presetNameInput.value = p.name;
@@ -388,14 +382,14 @@ presetConfirmBtn.addEventListener('click', () => {
   if (!name) return;
 
   if (isRenaming) {
-    const p = presets.find((x) => x.id === currentPresetId);
+    const p = presets.find(x => x.id === currentPresetId);
     if (p) p.name = name;
   } else {
     presets.push({
       id: Date.now().toString(),
       name,
       items: JSON.parse(JSON.stringify(items)),
-      runMode: runModeSelect.value as 'sequence' | 'parallel',
+      runMode: runModeSelect.value as 'sequence' | 'parallel'
     });
   }
   browser.storage.local.set({ presets });
@@ -404,7 +398,7 @@ presetConfirmBtn.addEventListener('click', () => {
 
 deletePresetBtn.addEventListener('click', () => {
   if (currentPresetId === 'default') return;
-  presets = presets.filter((p) => p.id !== currentPresetId);
+  presets = presets.filter(p => p.id !== currentPresetId);
   browser.storage.local.set({ presets, currentPresetId: 'default' });
 });
 
@@ -470,15 +464,12 @@ async function init() {
       const url = new URL(tabs[0].url);
       const parts = url.hostname.split('.');
       if (parts.length > 1) {
-        const apex =
-          parts.length > 2 && parts[parts.length - 2].length <= 3
-            ? parts.slice(-3).join('.')
-            : parts.slice(-2).join('.');
-        defaultMatchPattern = `*://*.${apex}/*`;
+         const apex = parts.length > 2 && parts[parts.length-2].length <= 3 ? parts.slice(-3).join('.') : parts.slice(-2).join('.');
+         defaultMatchPattern = `*://*.${apex}/*`;
       }
-    } catch (_e) {}
+    } catch(_e) {}
   }
-
+  
   if (data.draftItem) {
     const d = data.draftItem;
     elementTypeObj.value = d.type || 'any';

@@ -59,7 +59,7 @@ fileInput.addEventListener('change', (e: Event) => {
       } else {
         // Bulk import logic - append rather than replace
         if (Array.isArray(parsed)) {
-          let firstNewId: string | null = null;
+          let firstNewId = null;
           parsed.forEach((importedPreset, idx) => {
             if (!importedPreset.name || !Array.isArray(importedPreset.items)) return;
 
