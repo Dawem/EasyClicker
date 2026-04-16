@@ -36,7 +36,7 @@ function addClickableHighlights() {
       isClickable = true;
     } else if (el.hasAttribute('onclick') || (el as any).onclick === 'function') {
       isClickable = true;
-    } else if (el.hasAttribute('role') && ['button', 'link', 'menuitem', 'tab'].includes(el.getAttribute('role'))) {
+    } else if (el.hasAttribute('role') && ['button', 'link', 'menuitem', 'tab'].includes(el.getAttribute('role') || '')) {
       isClickable = true;
     } else {
       const computed = window.getComputedStyle(el);
@@ -121,7 +121,7 @@ function getCssSelector(el) {
     return { path: tagClassSelector, text: targetText };
   }
 
-  const pathArr = [];
+  const pathArr: string[] = [];
   let currentEl = el;
   let usedText = false;
 
@@ -379,7 +379,7 @@ function startClicker() {
     if (mySequenceId !== sequenceId) return;
 
     const items = (res.items || []) as ClickItem[];
-    const globalIntervalMs = (parseFloat(res.interval) || 1.5) * 1000;
+    const globalIntervalMs = (parseFloat(res.interval || '1.5') || 1.5) * 1000;
     const runMode = res.runMode || 'sequence';
     currentRunMode = runMode;
 
@@ -1039,7 +1039,7 @@ function startPicker() {
   document.addEventListener('click', clickHandler as any, true);
 }
 
-browser.runtime.onMessage.addListener((message: { action: string }) => {
+browser.runtime.onMessage.addListener((message: any) => {
   if (message.action === 'startPicking') {
     startPicker();
   }

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc --noEmit && esbuild background.ts content.ts popup.ts import_portal.ts --bundle --outdir=compiled --platform=browser --target=es2020",
     "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

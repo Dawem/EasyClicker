@@ -196,7 +196,7 @@ function initTabContext() {
   });
 }
 
-const dashboardView = document.getElementById('dashboardView');
+const dashboardView = document.getElementById('dashboardView') as HTMLElement;
 
 function openForm() {
   settingsView.style.display = 'none';
@@ -249,7 +249,7 @@ pickBtn.addEventListener('click', () => {
     .then(() => {
       browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
         if (tabs.length > 0) {
-          browser.tabs.sendMessage(tabs[0].id, { action: 'startPicking' }).catch(() => {});
+          browser.tabs.sendMessage(tabs[0].id!, { action: 'startPicking' }).catch(() => {});
         }
         window.close();
       });
@@ -331,7 +331,7 @@ function createListItem(item: ClickItem): HTMLElement {
     const extrasDiv = document.createElement('div');
     extrasDiv.className = 'item-text';
 
-    const extras = [];
+    const extras: string[] = [];
     extras.push(`Speed: ${item.interval}s`);
 
     extrasDiv.textContent = extras.join(' | ');
@@ -442,7 +442,7 @@ function renderList() {
   });
 }
 
-let dragSourceEl = null;
+let dragSourceEl: HTMLElement | null = null;
 
 elementList.addEventListener('dragstart', (e: DragEvent) => {
   const itemEl = (e.target as HTMLElement).closest('.element-item') as HTMLElement;
@@ -457,7 +457,7 @@ elementList.addEventListener('dragover', (e: DragEvent) => {
   e.preventDefault();
   e.dataTransfer!.dropEffect = 'move';
   const targetEl = (e.target as HTMLElement).closest('.element-item') as HTMLElement;
-  if (targetEl && targetEl !== dragSourceEl) {
+  if (dragSourceEl && targetEl && targetEl !== dragSourceEl) {
     const rect = targetEl.getBoundingClientRect();
     const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
     if (next) {
@@ -495,12 +495,12 @@ elementList.addEventListener('drop', (e: DragEvent) => {
 
   const targetEl = (e.target as HTMLElement).closest('.element-item') as HTMLElement;
 
-  if (targetEl && targetEl !== dragSourceEl) {
+  if (dragSourceEl && targetEl && targetEl !== dragSourceEl) {
     const rect = targetEl.getBoundingClientRect();
     const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
 
-    const draggedId = (dragSourceEl as HTMLElement).dataset.itemId;
-    const targetId = targetEl.dataset.itemId;
+    const draggedId = (dragSourceEl as HTMLElement).dataset.itemId || '';
+    const targetId = targetEl.dataset.itemId || '';
 
     if (draggedId && targetId) {
       const draggedRealIndex = items.findIndex((i) => i.id === draggedId);
@@ -651,7 +651,7 @@ presetSelectDashboard.addEventListener('change', () => {
 });
 
 exportSinglePresetBtn.addEventListener('click', () => {
-  let exportData = null;
+  let exportData: any = null;
   if (currentPresetId !== 'default') {
     exportData = presets.find((x) => x.id === currentPresetId);
   } else {

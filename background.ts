@@ -13,7 +13,7 @@ browser.commands.onCommand.addListener((command: string) => {
   }
 });
 
-browser.runtime.onMessage.addListener((message: { action: string }) => {
+browser.runtime.onMessage.addListener((message: any) => {
   if (message.action === 'start' || message.action === 'stop') {
     toggleClickerState(message.action as 'start' | 'stop');
   }
