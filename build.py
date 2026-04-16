@@ -17,18 +17,29 @@ def clean_dist():
     os.makedirs(FIREFOX_DIR)
 
 def copy_project_files(dest_dir):
-    ignore_items = {'.git', '.vscode', 'dist', 'build.py', 'node_modules', '__pycache__'}
-    for item in os.listdir(SRC_DIR):
-        if item in ignore_items or item.endswith('.md') or item.endswith('.pem') or item.endswith('.gitignore'):
-            continue
-        
-        s = os.path.join(SRC_DIR, item)
-        d = os.path.join(dest_dir, item)
-        
-        if os.path.isdir(s):
-            shutil.copytree(s, d)
-        else:
-            shutil.copy2(s, d)
+    # Copy manifest and icons
+    shutil.copy2(os.path.join(SRC_DIR, "manifest.json"), os.path.join(dest_dir, "manifest.json"))
+    
+    # Copy assets
+    assets_dir = os.path.join(SRC_DIR, "assets")
+    if os.path.exists(assets_dir):
+        for item in os.listdir(assets_dir):
+            shutil.copy2(os.path.join(assets_dir, item), os.path.join(dest_dir, item))
+
+    # Copy static files from src recursively, flattening them to root
+    src_dir = os.path.join(SRC_DIR, "src")
+    if os.path.exists(src_dir):
+        for root, dirs, files in os.walk(src_dir):
+            for file in files:
+                if file.endswith(('.html', '.css', '.png', '.jpg', '.svg')):
+                    shutil.copy2(os.path.join(root, file), os.path.join(dest_dir, file))
+    
+    # Copy compiled JS files
+    compiled_dir = os.path.join(SRC_DIR, "compiled")
+    if os.path.exists(compiled_dir):
+        for item in os.listdir(compiled_dir):
+            if item.endswith('.js'):
+                shutil.copy2(os.path.join(compiled_dir, item), os.path.join(dest_dir, item))
 
 def package_zip(source_dir, output_filename):
     with zipfile.ZipFile(output_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -98,6 +109,10 @@ def build_firefox():
 
 if __name__ == "__main__":
     print("Starting build process...")
+    # Run npm build
+    print("Running npm build (TypeScript compilation)...")
+    subprocess.run("npm run build", shell=True, check=True, cwd=SRC_DIR)
+    
     clean_dist()
     build_chrome()
     build_firefox()

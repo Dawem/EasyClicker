@@ -1,0 +1,41 @@
+{
+  "name": "easyclicker",
+  "version": "1.0.0",
+  "description": "Firefox: https://addons.mozilla.org/en-CA/firefox/addon/easy-clicker/",
+  "main": "background.js",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/background/background.ts src/content/content.ts src/popup/popup.ts src/portal/import_portal.ts --bundle --outdir=compiled --platform=browser --target=es2020 --entry-names=[name]",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dawem/EasyClicker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Dawem/EasyClicker/issues"
+  },
+  "homepage": "https://github.com/Dawem/EasyClicker#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.1.40",
+    "@types/webextension-polyfill": "^0.12.5",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "chrome-types": "^0.1.425",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.5.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.2"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  }
+}

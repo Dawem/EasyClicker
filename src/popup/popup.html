@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="header">
+    <div class="ec-flex-row ec-gap-8">
+      <h1>Easy Clicker</h1>
+    </div>
+    <div class="ec-flex-row ec-gap-6">
+      <button id="toggleFormBtn" class="icon-btn primary ec-btn-primary-small">
+        + Add Element
+      </button>
+      <button id="settingsBtn" class="icon-btn ec-btn-icon-small" title="Settings">⚙️</button>
+      <a href="https://github.com/Dawem/EasyClicker" target="_blank" title="View Source on GitHub" class="ec-github-link">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+          </path>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <div id="settingsView" class="ec-hidden ec-flex-col ec-flex-1 ec-gap-12" style="padding: 2px 0 0 0;">
+
+    <div class="ec-settings-card">
+      <div class="ec-settings-header">
+        ⚙️ Execution
+      </div>
+
+      <div class="field" style="margin-bottom: 12px;">
+        <label for="interval" style="margin-bottom: 6px;">
+          Global Wait Time (s)
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">Default delay or interval used when clicking elements.</div>
+          </div>
+        </label>
+        <input type="number" id="interval" min="0.1" step="0.1" placeholder="e.g. 1.5" style="height: 30px;">
+      </div>
+
+      <div class="ec-settings-row">
+        <input type="checkbox" id="autoStart" class="ec-checkbox">
+        <label for="autoStart" class="ec-checkbox-label">
+          Auto-start on page load
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the clicker automatically runs when a page matching active items loads.</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="ec-settings-row">
+        <input type="checkbox" id="filterDomain" checked class="ec-checkbox">
+        <label for="filterDomain" class="ec-checkbox-label">
+          Show current tab only
+          <div class="tooltip-wrapper align-right" style="margin-left: 4px;">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text" style="width: 180px;">If checked, the elements list will only show items matching the current active tab.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="ec-settings-card">
+      <div class="ec-settings-header">
+        <div class="ec-flex-row ec-gap-6">
+          📂 Presets
+        </div>
+        <div class="tooltip-wrapper align-right">
+          <span class="tooltip-icon">?</span>
+          <div class="tooltip-text" style="width: 180px; font-weight: normal;">Save your active element list, run mode, and execution configuration into a preset for future use.</div>
+        </div>
+      </div>
+
+      <div class="ec-flex-row ec-gap-6" style="margin-bottom: 8px;">
+        <select id="presetSelect" class="ec-flex-1" style="height:30px; font-size: 12px;"></select>
+        <button id="newPresetBtn" title="Create New Preset" class="icon-btn ec-icon-wrapper" style="width:30px; height:30px; border:1px solid var(--border-color); border-radius:6px; background:var(--surface-color); font-size:18px;">+</button>
+      </div>
+
+      <div id="presetActionsBlock" class="ec-hidden ec-flex-col ec-gap-6">
+        <div class="ec-flex-row ec-gap-6">
+          <button id="renamePresetBtn" class="icon-btn ec-flex-1 ec-justify-center" style="height:28px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">Rename</button>
+          <button id="deletePresetBtn" class="icon-btn danger ec-justify-center" style="width:34px; height:28px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">✕</button>
+        </div>
+        <div id="presetPromptDiv" class="ec-hidden ec-flex-col ec-gap-6" style="margin-top:4px;">
+          <input type="text" id="presetNameInput" placeholder="Enter preset name..." style="height:28px; font-size:11px;">
+          <div class="ec-flex-row ec-gap-6">
+            <button id="presetConfirmBtn" class="icon-btn primary ec-flex-1 ec-justify-center" style="height:26px; background:var(--accent-primary); color:white; font-size:11px;">Save</button>
+            <button id="presetCancelBtn" class="icon-btn ec-flex-1 ec-justify-center" style="height:26px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ec-settings-card">
+      <div class="ec-settings-header">
+        📤 Data Management
+      </div>
+      <div class="ec-flex-col ec-gap-8">
+        <div class="ec-flex-row ec-gap-8">
+          <button id="exportSinglePresetBtn" class="icon-btn ec-flex-1 ec-justify-center ec-gap-6" style="height:32px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">
+            Export Current
+          </button>
+          <button id="importSinglePresetBtn" class="icon-btn ec-flex-1 ec-justify-center ec-gap-6" style="height:32px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">
+            Import Preset
+          </button>
+        </div>
+        <button id="importPresetBtn" class="icon-btn ec-full-width ec-justify-center ec-gap-6" style="height:32px; border:1px solid var(--border-color); background:var(--bg-color); font-size:11px;">
+          Import All From Backup
+        </button>
+      </div>
+    </div>
+
+    <div class="ec-mt-auto ec-pt-10">
+      <button id="settingsBackBtn" class="icon-btn ec-full-width ec-justify-center" style="height:36px; background:var(--surface-color); border:1px solid var(--border-color); font-size:12px; font-weight:700;">
+        Back to Dashboard
+      </button>
+    </div>
+  </div>
+
+  <div id="mainView" class="ec-flex-col ec-flex-1" style="min-height: 0;">
+    <div id="addSection" class="add-section ec-hidden">
+      <div class="flex-row">
+        <div class="field">
+          <label for="elementType">
+            Element Type
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Filter for specific HTML tags. Select 'Any Tag' for general selectors.</div>
+            </div>
+          </label>
+          <select id="elementType">
+            <option value="any">Any Tag</option>
+            <option value="button">Button</option>
+            <option value="a">Link (Anchor)</option>
+            <option value="input">Input / Submit</option>
+            <option value="div">Div</option>
+            <option value="span">Span</option>
+            <option value="img">Image</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="matchType">
+            Match Type
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">First: clicks the first element found. All: clicks every matching element.</div>
+            </div>
+          </label>
+          <select id="matchType">
+            <option value="first">First</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="selector">
+          CSS Selector
+          <div class="tooltip-wrapper align-left">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-text">Direct identifier for the target. Supports class (.btn), ID (#id), or attributes.</div>
+          </div>
+        </label>
+        <div class="ec-flex-row ec-gap-8">
+          <input type="text" id="selector" placeholder="e.g. .buy-btn or [name='submit']" class="ec-flex-1">
+          <button id="pickBtn" class="icon-btn primary ec-icon-wrapper" title="Pick from page"
+            style="width: 38px; flex-shrink: 0; background-color: var(--bg-color); border: 1px solid var(--border-color);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M3 12h3m12 0h3M12 3v3m0 12v3"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="selectorError" class="error">Selector is required for 'Any Tag' type.</div>
+      </div>
+
+      <div class="flex-row">
+        <div class="field">
+          <label for="customName">
+            Label (Optional)
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">A friendly name for this element in your list.</div>
+            </div>
+          </label>
+          <input type="text" id="customName" placeholder="e.g. Purchase Button">
+        </div>
+        <div class="field">
+          <label for="targetText">
+            Target Text (Optional)
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Only click if the element contains this exact text.</div>
+            </div>
+          </label>
+          <input type="text" id="targetText" placeholder="e.g. Order Now">
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div class="field">
+          <label for="matchPattern">
+            URL Match
+            <div class="tooltip-wrapper align-left">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">The domain/page where this item should be active. * is a wildcard.</div>
+            </div>
+          </label>
+          <input type="text" id="matchPattern" placeholder="e.g. *://example.com/*">
+        </div>
+        <div class="field">
+          <label for="itemInterval">
+            Speed (s, Optional)
+            <div class="tooltip-wrapper align-right">
+              <span class="tooltip-icon">?</span>
+              <div class="tooltip-text">Custom delay for this specific element. Overrides global speed.</div>
+            </div>
+          </label>
+          <input type="number" id="itemInterval" min="0.01" step="0.1" placeholder="Override global">
+        </div>
+      </div>
+
+      <input type="hidden" id="editId">
+      <div class="form-btn-group">
+        <button id="addUpdateBtn">Add Element</button>
+        <button id="cancelFormBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div id="dashboardView" class="list-section ec-flex-col">
+      <div class="list-header">
+        <label>Active Element List</label>
+        <div class="filter-wrapper">
+          <label for="runMode" style="font-size: 10px; color: var(--text-muted); padding-right: 4px;">Mode:</label>
+          <select id="runMode" style="height: 22px; width: 85px; font-size: 10px; padding: 0 18px 0 6px;">
+            <option value="sequence">Sequence</option>
+            <option value="parallel">Parallel</option>
+          </select>
+        </div>
+      </div>
+      <div id="elementList"></div>
+
+      <div class="field" style="margin-top: 10px; margin-bottom: 0;">
+        <label for="presetSelectDashboard">Active Preset</label>
+        <select id="presetSelectDashboard" style="height: 30px; font-size: 12px;"></select>
+      </div>
+    </div>
+
+    <div class="main-controls">
+      <button id="toggleStartStopBtn"
+        style="background: var(--accent-primary); width: 100%; padding: 12px; border-radius: 8px; flex: 2; height: 48px;">
+        <span id="startStopText" style="font-size: 15px; font-weight: 700;">Start Auto-Clicker</span>
+        <span class="shortcut">Alt + Shift + Z</span>
+      </button>
+      <button id="exportPresetBtn" class="icon-btn ec-flex-col ec-align-center ec-justify-center"
+        style="width: 48px; border: 1px solid var(--border-color); background: var(--surface-color); height: 48px;"
+        title="Quick Export All">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
+        <span style="font-size: 8px; margin-top: 2px;">Backup</span>
+      </button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
