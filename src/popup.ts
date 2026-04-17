@@ -1,73 +1,51 @@
+import { state } from './popup/state';
+import {
+  addSection,
+  toggleFormBtn,
+  cancelFormBtn,
+  elementTypeObj,
+  matchTypeObj,
+  selectorInput,
+  selectorError,
+  customNameInput,
+  targetTextInput,
+  matchPatternInput,
+  itemIntervalInput,
+  intervalInput,
+  autoStartCheckbox,
+  addUpdateBtn,
+  editIdInput,
+  elementList,
+  filterDomainCheckbox,
+  toggleStartStopBtn,
+  openOverlayBtn,
+  runModeSelect,
+  presetSelect,
+  presetSelectDashboard,
+  newPresetBtn,
+  deletePresetBtn,
+  renamePresetBtn,
+  presetActionsBlock,
+  exportSinglePresetBtn,
+  importSinglePresetBtn,
+  exportPresetBtn,
+  importPresetBtn,
+  presetPromptDiv,
+  presetNameInput,
+  presetConfirmBtn,
+  presetCancelBtn,
+  settingsBtn,
+  settingsView,
+  mainView,
+  settingsBackBtn,
+  pickBtn,
+} from './popup/dom';
 import browser from 'webextension-polyfill';
 import { ClickItem, DraftItem, Preset, StorageData } from './types';
 import { generateConciseTitle, getApexDomain, matchPatternToRegExp, createElement } from './utils';
 
-const addSection = document.getElementById('addSection') as HTMLElement;
-const toggleFormBtn = document.getElementById('toggleFormBtn') as HTMLElement;
-const cancelFormBtn = document.getElementById('cancelFormBtn') as HTMLElement;
-
-const elementTypeObj = document.getElementById('elementType') as HTMLSelectElement;
-const matchTypeObj = document.getElementById('matchType') as HTMLSelectElement;
-const selectorInput = document.getElementById('selector') as HTMLInputElement;
-const selectorError = document.getElementById('selectorError') as HTMLElement;
-const customNameInput = document.getElementById('customName') as HTMLInputElement;
-const targetTextInput = document.getElementById('targetText') as HTMLInputElement;
-const matchPatternInput = document.getElementById('matchPattern') as HTMLInputElement;
-const itemIntervalInput = document.getElementById('itemInterval') as HTMLInputElement;
-const intervalInput = document.getElementById('interval') as HTMLInputElement;
-const autoStartCheckbox = document.getElementById('autoStart') as HTMLInputElement;
-const addUpdateBtn = document.getElementById('addUpdateBtn') as HTMLButtonElement;
-const editIdInput = document.getElementById('editId') as HTMLInputElement;
-const elementList = document.getElementById('elementList') as HTMLElement;
-const filterDomainCheckbox = document.getElementById('filterDomain') as HTMLInputElement;
-const toggleStartStopBtn = document.getElementById('toggleStartStopBtn') as HTMLButtonElement;
-const openOverlayBtn = document.getElementById('openOverlayBtn') as HTMLButtonElement;
-
-const runModeSelect = document.getElementById('runMode') as HTMLSelectElement;
-const presetSelect = document.getElementById('presetSelect') as HTMLSelectElement;
-const presetSelectDashboard = document.getElementById('presetSelectDashboard') as HTMLSelectElement;
-const newPresetBtn = document.getElementById('newPresetBtn') as HTMLButtonElement;
-const deletePresetBtn = document.getElementById('deletePresetBtn') as HTMLButtonElement;
-const renamePresetBtn = document.getElementById('renamePresetBtn') as HTMLButtonElement;
-const presetActionsBlock = document.getElementById('presetActionsBlock') as HTMLElement;
-
-const exportSinglePresetBtn = document.getElementById('exportSinglePresetBtn') as HTMLButtonElement;
-const importSinglePresetBtn = document.getElementById('importSinglePresetBtn') as HTMLButtonElement;
-
-const exportPresetBtn = document.getElementById('exportPresetBtn') as HTMLButtonElement;
-const importPresetBtn = document.getElementById('importPresetBtn') as HTMLButtonElement;
-
-const presetPromptDiv = document.getElementById('presetPromptDiv') as HTMLElement;
-const presetNameInput = document.getElementById('presetNameInput') as HTMLInputElement;
-const presetConfirmBtn = document.getElementById('presetConfirmBtn') as HTMLButtonElement;
-const presetCancelBtn = document.getElementById('presetCancelBtn') as HTMLButtonElement;
-
-const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
-const settingsView = document.getElementById('settingsView') as HTMLElement;
-const mainView = document.getElementById('mainView') as HTMLElement;
-const settingsBackBtn = document.getElementById('settingsBackBtn') as HTMLButtonElement;
-
-const pickBtn = document.getElementById('pickBtn') as HTMLButtonElement;
-
-let items: ClickItem[] = [];
-let defaultMatchPattern = '';
-let currentTabUrl = '';
-let isRenaming = false;
-
-let presets: Preset[] = [];
-let currentPresetId = 'default';
-
-let rafId: number | null = null;
-let globalIsRunning = false;
-let globalInterval = 1.5;
-let globalStartTime = 0;
-let runMode = 'sequence';
-
-let activeSequenceItemId: string | null = null;
-let activeSequenceItemStart = 0;
-
 function updateProgressBars() {
-  if (!globalIsRunning) return;
+  if (!state.globalIsRunning) return;
   const now = Date.now();
   const els = document.querySelectorAll('.element-item');
   els.forEach((el) => {
@@ -81,13 +59,13 @@ function updateProgressBars() {
       return;
     }
 
-    if (runMode === 'sequence') {
+    if (state.runMode === 'sequence') {
       const itemId = (el as HTMLElement).dataset.itemId;
-      if (itemId === activeSequenceItemId) {
+      if (itemId === state.activeSequenceItemId) {
         const itemIntervalMs = (el as HTMLElement).dataset.intervalMs
           ? parseFloat((el as HTMLElement).dataset.intervalMs!)
-          : globalInterval * 1000;
-        const elapsed = now - activeSequenceItemStart;
+          : state.globalInterval * 1000;
+        const elapsed = now - state.activeSequenceItemStart;
         const progress = Math.min(1, Math.max(0, elapsed / itemIntervalMs));
         bar.style.width = `${progress * 100}%`;
         bar.style.opacity = '1';
@@ -98,32 +76,32 @@ function updateProgressBars() {
     } else {
       const itemIntervalMs = (el as HTMLElement).dataset.intervalMs
         ? parseFloat((el as HTMLElement).dataset.intervalMs!)
-        : globalInterval * 1000;
+        : state.globalInterval * 1000;
       if (itemIntervalMs < 100) {
         if (!bar.classList.contains('fast-mode')) bar.classList.add('fast-mode');
       } else {
         if (bar.classList.contains('fast-mode')) bar.classList.remove('fast-mode');
-        const elapsed = now - globalStartTime;
+        const elapsed = now - state.globalStartTime;
         if (elapsed < 0) return;
         const progress = (elapsed % itemIntervalMs) / itemIntervalMs;
         bar.style.width = `${progress * 100}%`;
       }
     }
   });
-  rafId = requestAnimationFrame(updateProgressBars);
+  state.rafId = requestAnimationFrame(updateProgressBars);
 }
 
 function initTabContext() {
   browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
     if (tabs.length > 0 && tabs[0].url) {
-      currentTabUrl = tabs[0].url;
+      state.currentTabUrl = tabs[0].url;
       try {
         const url = new URL(tabs[0].url);
         if (url.hostname) {
           const apexDomain = getApexDomain(url.hostname);
-          defaultMatchPattern = `*://*.${apexDomain}/*`;
+          state.defaultMatchPattern = `*://*.${apexDomain}/*`;
           if (!matchPatternInput.value && !editIdInput.value) {
-            matchPatternInput.value = defaultMatchPattern;
+            matchPatternInput.value = state.defaultMatchPattern;
           }
         }
       } catch (_e) {}
@@ -135,10 +113,10 @@ function initTabContext() {
 const dashboardView = document.getElementById('dashboardView') as HTMLElement;
 
 function showView(viewName: 'main' | 'form' | 'settings') {
-  mainView.style.display = viewName === 'main' ? 'flex' : 'none';
+  mainView.style.display = viewName === 'settings' ? 'none' : 'flex';
   settingsView.style.display = viewName === 'settings' ? 'flex' : 'none';
   addSection.style.display = viewName === 'form' ? 'block' : 'none';
-  dashboardView.style.display = viewName === 'form' ? 'none' : 'flex';
+  dashboardView.style.display = viewName === 'main' ? 'flex' : 'none';
 
   const isSettings = viewName === 'settings';
   settingsBtn.style.background = isSettings ? 'var(--accent-primary)' : 'var(--surface-color)';
@@ -159,7 +137,7 @@ function closeForm() {
   selectorInput.value = '';
   customNameInput.value = '';
   targetTextInput.value = '';
-  matchPatternInput.value = defaultMatchPattern;
+  matchPatternInput.value = state.defaultMatchPattern;
   itemIntervalInput.value = '';
   elementTypeObj.value = 'any';
   matchTypeObj.value = 'first';
@@ -296,11 +274,11 @@ function createListItem(item: ClickItem): HTMLElement {
       () => {
         const newItem = JSON.parse(JSON.stringify(item));
         newItem.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-        const index = items.findIndex((i) => i.id === item.id);
+        const index = state.items.findIndex((i) => i.id === item.id);
         if (index > -1) {
-          items.splice(index + 1, 0, newItem);
+          state.items.splice(index + 1, 0, newItem);
         } else {
-          items.push(newItem);
+          state.items.push(newItem);
         }
         saveItems();
         renderList();
@@ -313,7 +291,7 @@ function createListItem(item: ClickItem): HTMLElement {
       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
       'Remove',
       () => {
-        items = items.filter((i) => i.id !== item.id);
+        state.items = state.items.filter((i) => i.id !== item.id);
         if (editIdInput.value === item.id) closeForm();
         saveItems();
         renderList();
@@ -331,7 +309,7 @@ function createListItem(item: ClickItem): HTMLElement {
   pbContainer.appendChild(pb);
   el.appendChild(pbContainer);
 
-  const gIntMs = globalInterval * 1000;
+  const gIntMs = state.globalInterval * 1000;
   const itemIntervalMs = item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : gIntMs;
   el.dataset.intervalMs = itemIntervalMs.toString();
 
@@ -342,22 +320,22 @@ function renderList() {
   elementList.innerHTML = '';
 
   const filterCurrent = filterDomainCheckbox.checked;
-  const renderableItems = items.filter((item) => {
-    if (!filterCurrent || !currentTabUrl) return true;
+  const renderableItems = state.items.filter((item) => {
+    if (!filterCurrent || !state.currentTabUrl) return true;
     try {
       const regex = matchPatternToRegExp(item.matchPattern);
-      return regex.test(currentTabUrl);
+      return regex.test(state.currentTabUrl);
     } catch (_e) {
       return false;
     }
   });
 
-  if (items.length === 0) {
+  if (state.items.length === 0) {
     elementList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; margin: auto;">No elements added yet.<br><br>Click "+ Add New Element" to get started.</div>`;
     return;
   }
 
-  if (renderableItems.length === 0 && items.length > 0) {
+  if (renderableItems.length === 0 && state.items.length > 0) {
     if (filterCurrent) {
       elementList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; margin: auto;">No elements match the current domain.</div>`;
     }
@@ -430,16 +408,16 @@ elementList.addEventListener('drop', (e: DragEvent) => {
     const targetId = targetEl.dataset.itemId || '';
 
     if (draggedId && targetId) {
-      const draggedRealIndex = items.findIndex((i) => i.id === draggedId);
-      let targetRealIndex = items.findIndex((i) => i.id === targetId);
+      const draggedRealIndex = state.items.findIndex((i) => i.id === draggedId);
+      let targetRealIndex = state.items.findIndex((i) => i.id === targetId);
 
       if (draggedRealIndex > -1 && targetRealIndex > -1) {
         if (next) targetRealIndex++;
 
-        const [movedItem] = items.splice(draggedRealIndex, 1);
+        const [movedItem] = state.items.splice(draggedRealIndex, 1);
         if (draggedRealIndex < targetRealIndex) targetRealIndex--;
 
-        items.splice(targetRealIndex, 0, movedItem);
+        state.items.splice(targetRealIndex, 0, movedItem);
 
         saveItems();
         renderList();
@@ -456,34 +434,34 @@ elementList.addEventListener('drop', (e: DragEvent) => {
 });
 
 function getCurrentPreset(): Preset | undefined {
-  if (currentPresetId === 'default') return undefined;
-  return presets.find((x) => x.id === currentPresetId);
+  if (state.currentPresetId === 'default') return undefined;
+  return state.presets.find((x) => x.id === state.currentPresetId);
 }
 
 function saveItems() {
-  browser.storage.local.set({ items: items });
+  browser.storage.local.set({ items: state.items });
   const p = getCurrentPreset();
   if (p) {
-    p.items = JSON.parse(JSON.stringify(items));
+    p.items = JSON.parse(JSON.stringify(state.items));
     savePresets();
   }
 }
 
 function stopClicker() {
-  if (globalIsRunning) {
+  if (state.globalIsRunning) {
     browser.storage.local.set({ isRunning: false });
   }
 }
 
 function savePresets() {
-  browser.storage.local.set({ presets, currentPresetId });
+  browser.storage.local.set({ presets: state.presets, currentPresetId: state.currentPresetId });
 }
 
 function loadPreset(_id: string) {
   const p = getCurrentPreset();
   if (p) {
     stopClicker();
-    items = JSON.parse(JSON.stringify(p.items));
+    state.items = JSON.parse(JSON.stringify(p.items));
     saveItems();
     renderList();
     if (p.runMode) {
@@ -494,26 +472,26 @@ function loadPreset(_id: string) {
 }
 
 function renderPresets() {
-  if (presets.length === 0) {
-    presets = [
+  if (state.presets.length === 0) {
+    state.presets = [
       {
         id: 'default_preset',
         name: 'Default',
-        items: items.length > 0 ? JSON.parse(JSON.stringify(items)) : [],
+        items: state.items.length > 0 ? JSON.parse(JSON.stringify(state.items)) : [],
         runMode: runModeSelect.value || 'sequence',
       },
     ];
-    currentPresetId = 'default_preset';
+    state.currentPresetId = 'default_preset';
     savePresets();
   }
 
   presetSelect.innerHTML = '';
   presetSelectDashboard.innerHTML = '';
-  if (currentPresetId === 'default' && presets[0]) {
-    currentPresetId = presets[0].id;
+  if (state.currentPresetId === 'default' && state.presets[0]) {
+    state.currentPresetId = state.presets[0].id;
   }
 
-  presets.forEach((p) => {
+  state.presets.forEach((p) => {
     const opt = createElement('option', {
       value: p.id,
       textContent: p.name,
@@ -521,8 +499,8 @@ function renderPresets() {
     presetSelect.appendChild(opt);
     presetSelectDashboard.appendChild(opt.cloneNode(true));
   });
-  presetSelect.value = currentPresetId;
-  presetSelectDashboard.value = currentPresetId;
+  presetSelect.value = state.currentPresetId;
+  presetSelectDashboard.value = state.currentPresetId;
 
   presetActionsBlock.style.display = 'flex';
   presetPromptDiv.style.display = 'none';
@@ -548,16 +526,16 @@ runModeSelect.addEventListener('change', () => {
 });
 
 presetSelect.addEventListener('change', () => {
-  currentPresetId = presetSelect.value;
+  state.currentPresetId = presetSelect.value;
   resetDeleteButtonStyle();
-  loadPreset(currentPresetId);
+  loadPreset(state.currentPresetId);
   savePresets();
 });
 
 presetSelectDashboard.addEventListener('change', () => {
-  currentPresetId = presetSelectDashboard.value;
+  state.currentPresetId = presetSelectDashboard.value;
   resetDeleteButtonStyle();
-  loadPreset(currentPresetId);
+  loadPreset(state.currentPresetId);
   savePresets();
 });
 
@@ -565,7 +543,7 @@ exportSinglePresetBtn.addEventListener('click', () => {
   const exportData = getCurrentPreset() || {
     id: Date.now().toString(),
     name: 'Exported Preset',
-    items: items,
+    items: state.items,
     runMode: runModeSelect.value,
   };
 
@@ -597,7 +575,7 @@ importSinglePresetBtn.addEventListener('click', () => {
 });
 
 exportPresetBtn.addEventListener('click', () => {
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(presets, null, 2));
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state.presets, null, 2));
   const downloadAnchorNode = createElement('a', {
     href: dataStr,
     download: 'easyclicker_presets.json',
@@ -616,7 +594,7 @@ importPresetBtn.addEventListener('click', () => {
 });
 
 newPresetBtn.addEventListener('click', () => {
-  isRenaming = false;
+  state.isRenaming = false;
   presetPromptDiv.style.display = 'flex';
   presetNameInput.value = '';
   presetConfirmBtn.textContent = 'Create';
@@ -626,7 +604,7 @@ newPresetBtn.addEventListener('click', () => {
 renamePresetBtn.addEventListener('click', () => {
   const p = getCurrentPreset();
   if (p) {
-    isRenaming = true;
+    state.isRenaming = true;
     presetPromptDiv.style.display = 'flex';
     presetNameInput.value = p.name;
     presetConfirmBtn.textContent = 'Rename';
@@ -648,20 +626,20 @@ presetConfirmBtn.addEventListener('click', () => {
   const name = presetNameInput.value;
   if (name && name.trim()) {
     const p = getCurrentPreset();
-    if (isRenaming && p) {
+    if (state.isRenaming && p) {
       p.name = name.trim();
       savePresets();
       renderPresets();
     } else {
       const id = Date.now().toString();
-      items = [];
-      presets.push({
+      state.items = [];
+      state.presets.push({
         id,
         name: name.trim(),
         items: [],
         runMode: runModeSelect.value,
       });
-      currentPresetId = id;
+      state.currentPresetId = id;
       saveItems();
       savePresets();
       renderPresets();
@@ -669,7 +647,7 @@ presetConfirmBtn.addEventListener('click', () => {
     }
     presetPromptDiv.style.display = 'none';
     presetNameInput.value = '';
-    isRenaming = false;
+    state.isRenaming = false;
   }
 });
 
@@ -686,7 +664,7 @@ function resetDeleteButtonStyle() {
 }
 
 deletePresetBtn.addEventListener('click', () => {
-  if (currentPresetId === 'default') return;
+  if (state.currentPresetId === 'default') return;
 
   if (!deleteConfirmState) {
     if (deleteTimeout) clearTimeout(deleteTimeout);
@@ -702,16 +680,16 @@ deletePresetBtn.addEventListener('click', () => {
     if (deleteTimeout) clearTimeout(deleteTimeout);
     deleteTimeout = null;
 
-    presets = presets.filter((x) => x.id !== currentPresetId);
-    if (presets.length === 0) {
-      items = [];
+    state.presets = state.presets.filter((x) => x.id !== state.currentPresetId);
+    if (state.presets.length === 0) {
+      state.items = [];
       saveItems();
       renderList();
     }
-    currentPresetId = 'default';
+    state.currentPresetId = 'default';
     savePresets();
     renderPresets();
-    loadPreset(currentPresetId);
+    loadPreset(state.currentPresetId);
     resetDeleteButtonStyle();
   }
 });
@@ -746,7 +724,7 @@ addUpdateBtn.addEventListener('click', () => {
 
   const editId = editIdInput.value;
   if (editId) {
-    const item = items.find((i) => i.id == editId);
+    const item = state.items.find((i) => i.id == editId);
     if (item) {
       item.type = type;
       item.matchType = match;
@@ -757,7 +735,7 @@ addUpdateBtn.addEventListener('click', () => {
       item.interval = spd;
     }
   } else {
-    items.push({
+    state.items.push({
       id: Date.now().toString(),
       type: type,
       matchType: match,
@@ -800,7 +778,7 @@ autoStartCheckbox.addEventListener('change', () => {
 
 openOverlayBtn.addEventListener('click', () => {
   try {
-    const url = new URL(currentTabUrl);
+    const url = new URL(state.currentTabUrl);
     browser.storage.local.get(['overlayDomains']).then((res) => {
       browser.storage.local
         .set({
@@ -818,48 +796,48 @@ openOverlayBtn.addEventListener('click', () => {
 browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown; oldValue?: unknown }>) => {
   if (changes.interval && changes.interval.newValue) {
     if (changes.interval.newValue !== intervalInput.value) {
-      globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
+      state.globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
       renderList();
     }
   }
   if (changes.startTime && changes.startTime.newValue) {
-    globalStartTime = changes.startTime.newValue as number;
+    state.globalStartTime = changes.startTime.newValue as number;
   }
   if (changes.isRunning !== undefined) {
-    globalIsRunning = changes.isRunning.newValue as boolean;
-    updateStatus(globalIsRunning);
-    if (globalIsRunning) {
-      if (changes.startTime) globalStartTime = changes.startTime.newValue as number;
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(updateProgressBars);
+    state.globalIsRunning = changes.isRunning.newValue as boolean;
+    updateStatus(state.globalIsRunning);
+    if (state.globalIsRunning) {
+      if (changes.startTime) state.globalStartTime = changes.startTime.newValue as number;
+      if (state.rafId) cancelAnimationFrame(state.rafId);
+      state.rafId = requestAnimationFrame(updateProgressBars);
     } else {
-      if (rafId) cancelAnimationFrame(rafId);
+      if (state.rafId) cancelAnimationFrame(state.rafId);
       document.querySelectorAll('.progress-bar').forEach((bar) => ((bar as HTMLElement).style.width = '0%'));
     }
   }
   if (changes.runMode && changes.runMode.newValue) {
-    if (changes.runMode.newValue !== runMode) {
-      runMode = changes.runMode.newValue as string;
-      runModeSelect.value = runMode;
+    if (changes.runMode.newValue !== state.runMode) {
+      state.runMode = changes.runMode.newValue as string;
+      runModeSelect.value = state.runMode;
     }
   }
   if (changes.activeSequenceItemId) {
-    activeSequenceItemId = changes.activeSequenceItemId.newValue as string;
+    state.activeSequenceItemId = changes.activeSequenceItemId.newValue as string;
   }
   if (changes.activeSequenceItemStart) {
-    activeSequenceItemStart = changes.activeSequenceItemStart.newValue as number;
+    state.activeSequenceItemStart = changes.activeSequenceItemStart.newValue as number;
   }
   if (changes.presets && changes.presets.newValue) {
-    if (JSON.stringify(changes.presets.newValue) !== JSON.stringify(presets)) {
-      presets = changes.presets.newValue as Preset[];
+    if (JSON.stringify(changes.presets.newValue) !== JSON.stringify(state.presets)) {
+      state.presets = changes.presets.newValue as Preset[];
       renderPresets();
     }
   }
   if (changes.currentPresetId && changes.currentPresetId.newValue) {
-    if (changes.currentPresetId.newValue !== currentPresetId) {
-      currentPresetId = changes.currentPresetId.newValue as string;
+    if (changes.currentPresetId.newValue !== state.currentPresetId) {
+      state.currentPresetId = changes.currentPresetId.newValue as string;
       renderPresets();
-      loadPreset(currentPresetId);
+      loadPreset(state.currentPresetId);
     }
   }
 });
@@ -883,30 +861,30 @@ browser.storage.local
   ])
   .then((res: Partial<StorageData & { draftItem: DraftItem; pickedSelector: string; pickedText: string }>) => {
     if (res.runMode) {
-      runMode = res.runMode as string;
-      runModeSelect.value = runMode;
+      state.runMode = res.runMode as string;
+      runModeSelect.value = state.runMode;
     }
 
-    if (res.activeSequenceItemId) activeSequenceItemId = res.activeSequenceItemId as string;
-    if (res.activeSequenceItemStart) activeSequenceItemStart = res.activeSequenceItemStart as number;
+    if (res.activeSequenceItemId) state.activeSequenceItemId = res.activeSequenceItemId as string;
+    if (res.activeSequenceItemStart) state.activeSequenceItemStart = res.activeSequenceItemStart as number;
 
     if (res.presets) {
-      presets = res.presets as Preset[];
+      state.presets = res.presets as Preset[];
     }
     if (res.currentPresetId) {
-      currentPresetId = res.currentPresetId as string;
+      state.currentPresetId = res.currentPresetId as string;
     }
 
-    if (presets.length === 0) {
-      presets = [
+    if (state.presets.length === 0) {
+      state.presets = [
         {
           id: 'default_preset',
           name: 'Default',
-          items: items.length > 0 ? JSON.parse(JSON.stringify(items)) : [],
+          items: state.items.length > 0 ? JSON.parse(JSON.stringify(state.items)) : [],
           runMode: runModeSelect.value || 'sequence',
         },
       ];
-      currentPresetId = 'default_preset';
+      state.currentPresetId = 'default_preset';
       savePresets();
     }
 
@@ -914,7 +892,7 @@ browser.storage.local
 
     if (res.interval) {
       intervalInput.value = res.interval as string;
-      globalInterval = parseFloat(res.interval as string) || 1.5;
+      state.globalInterval = parseFloat(res.interval as string) || 1.5;
     }
 
     if (res.autoStart !== undefined) {
@@ -925,14 +903,14 @@ browser.storage.local
       filterDomainCheckbox.checked = res.filterDomain as boolean;
     }
 
-    globalStartTime = (res.startTime as number) || Date.now();
-    globalIsRunning = (res.isRunning as boolean) || false;
+    state.globalStartTime = (res.startTime as number) || Date.now();
+    state.globalIsRunning = (res.isRunning as boolean) || false;
 
-    if (globalIsRunning) {
-      rafId = requestAnimationFrame(updateProgressBars);
+    if (state.globalIsRunning) {
+      state.rafId = requestAnimationFrame(updateProgressBars);
     }
 
-    updateStatus(globalIsRunning);
+    updateStatus(state.globalIsRunning);
 
     if (res.pickedSelector) {
       let finalSelector = res.pickedSelector as string;
@@ -979,7 +957,7 @@ browser.storage.local
     }
 
     if (res.items && Array.isArray(res.items)) {
-      items = (res.items as ClickItem[]).map((item) => {
+      state.items = (res.items as ClickItem[]).map((item) => {
         if (!item.type) item.type = 'any';
         if (!item.matchType) item.matchType = 'first';
 
@@ -998,7 +976,7 @@ browser.storage.local
   });
 
 toggleStartStopBtn.addEventListener('click', () => {
-  browser.runtime.sendMessage({ action: globalIsRunning ? 'stop' : 'start' });
+  browser.runtime.sendMessage({ action: state.globalIsRunning ? 'stop' : 'start' });
 });
 
 toggleSelectorPlaceholder();

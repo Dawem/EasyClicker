@@ -70,12 +70,23 @@ describe('UI Functions', () => {
   });
 
   it('should correctly escape host for regex', async () => {
-    await import('./popup');
+    await import('../src/popup');
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const matchPatternInput = document.getElementById('matchPattern') as HTMLInputElement;
     expect(matchPatternInput.value).toBe('*://*.example.com/*');
+  });
+
+  it('should request correct keys from storage on load (no state. prefixes)', async () => {
+    await import('../src/popup');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const getKeys = (browser.storage.local.get as jest.Mock).mock.calls[0][0] as string[];
+    expect(getKeys).toContain('presets');
+    expect(getKeys).toContain('items');
+    expect(getKeys).not.toContain('state.presets');
+    expect(getKeys).not.toContain('state.items');
   });
 
   it('should render items in the list', async () => {
@@ -85,7 +96,7 @@ describe('UI Functions', () => {
       currentPresetId: 'default',
     });
 
-    await import('./popup');
+    await import('../src/popup');
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
@@ -97,18 +108,24 @@ describe('UI Functions', () => {
   });
 
   it('should toggle visibility of sections', async () => {
-    await import('./popup');
+    await import('../src/popup');
     const toggleFormBtn = document.getElementById('toggleFormBtn');
     const addSection = document.getElementById('addSection');
+    const mainView = document.getElementById('mainView');
+    const dashboardView = document.getElementById('dashboardView');
 
     expect(addSection?.style.display).toBe('none');
 
     toggleFormBtn?.click();
     expect(addSection?.style.display).toBe('block');
+    // This explicitly prevents regressions where mainView is accidentally hidden
+    expect(mainView?.style.display).not.toBe('none');
+    expect(dashboardView?.style.display).toBe('none');
 
     const cancelFormBtn = document.getElementById('cancelFormBtn');
     cancelFormBtn?.click();
     expect(addSection?.style.display).toBe('none');
+    expect(dashboardView?.style.display).toBe('flex');
   });
 
   it('should remove an item from the list', async () => {
@@ -118,7 +135,7 @@ describe('UI Functions', () => {
       currentPresetId: 'default',
     });
 
-    await import('./popup');
+    await import('../src/popup');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -138,7 +155,7 @@ describe('UI Functions', () => {
       currentPresetId: 'default',
     });
 
-    await import('./popup');
+    await import('../src/popup');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -151,7 +168,7 @@ describe('UI Functions', () => {
   });
 
   it('should add a new item via form', async () => {
-    await import('./popup');
+    await import('../src/popup');
 
     (document.getElementById('elementType') as HTMLSelectElement).value = 'any';
     (document.getElementById('selector') as HTMLInputElement).value = '.new-item';
@@ -165,7 +182,7 @@ describe('UI Functions', () => {
   });
 
   it('should update status button based on running state', async () => {
-    await import('./popup');
+    await import('../src/popup');
     const toggleStartStopBtn = document.getElementById('toggleStartStopBtn');
 
     const onChangedCallback = (browser.storage.onChanged.addListener as jest.Mock).mock.calls[0][0];
@@ -178,7 +195,7 @@ describe('UI Functions', () => {
   });
 
   it('should update selector placeholder based on element type', async () => {
-    await import('./popup');
+    await import('../src/popup');
     const elementTypeObj = document.getElementById('elementType') as HTMLSelectElement;
     const selectorInput = document.getElementById('selector') as HTMLInputElement;
 
@@ -192,7 +209,7 @@ describe('UI Functions', () => {
   });
 
   it('should toggle settings view', async () => {
-    await import('./popup');
+    await import('../src/popup');
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsView = document.getElementById('settingsView');
     const mainView = document.getElementById('mainView');
@@ -227,7 +244,7 @@ describe('UI Functions', () => {
       return 1;
     });
 
-    await import('./popup');
+    await import('../src/popup');
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 

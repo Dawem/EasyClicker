@@ -17,24 +17,20 @@ def clean_dist():
     os.makedirs(FIREFOX_DIR)
 
 def copy_project_files(dest_dir):
-    ignore_items = {'.git', '.vscode', 'dist', 'build.py', 'node_modules', '__pycache__', 'compiled', 'types.ts', 'tsconfig.json', 'package.json', 'package-lock.json'}
-    for item in os.listdir(SRC_DIR):
-        if item in ignore_items or item.endswith('.md') or item.endswith('.pem') or item.endswith('.gitignore') or item.endswith('.ts'):
-            continue
-        
-        s = os.path.join(SRC_DIR, item)
-        d = os.path.join(dest_dir, item)
-        
-        if os.path.isdir(s):
-            shutil.copytree(s, d)
-        else:
-            shutil.copy2(s, d)
-    
-    # Copy compiled JS files
+    public_dir = os.path.join(SRC_DIR, "public")
+    if os.path.exists(public_dir):
+        for item in os.listdir(public_dir):
+            s = os.path.join(public_dir, item)
+            d = os.path.join(dest_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
+                
     compiled_dir = os.path.join(SRC_DIR, "compiled")
     if os.path.exists(compiled_dir):
         for item in os.listdir(compiled_dir):
-            if item.endswith('.js'):
+            if item.endswith('.js') or item.endswith('.css'):
                 shutil.copy2(os.path.join(compiled_dir, item), os.path.join(dest_dir, item))
 
 def package_zip(source_dir, output_filename):
@@ -105,11 +101,11 @@ def build_firefox():
 
 if __name__ == "__main__":
     print("Starting build process...")
+    clean_dist()
     # Run npm build
     print("Running npm build (TypeScript compilation)...")
     subprocess.run("npm run build", shell=True, check=True, cwd=SRC_DIR)
     
-    clean_dist()
     build_chrome()
     build_firefox()
     print(f"Build complete! Output in: {DIST_DIR}")

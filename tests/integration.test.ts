@@ -24,7 +24,7 @@ describe('Integration: Storage to Content Script', () => {
 
     (browser.storage.local.get as jest.Mock).mockResolvedValue(mockState);
 
-    await import('./content');
+    await import('../src/content');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -49,7 +49,7 @@ describe('Integration: Storage to Content Script', () => {
       overlayDomains: { localhost: true },
     });
 
-    await import('./content');
+    await import('../src/content');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const onMessageCallback = (browser.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
@@ -65,7 +65,7 @@ describe('Integration: Storage to Content Script', () => {
   });
 
   it('should toggle clicker state in background script via messages', async () => {
-    await import('./background');
+    await import('../src/background');
     const onMessageCallback = (browser.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
 
     onMessageCallback({ action: 'start' });
@@ -76,7 +76,7 @@ describe('Integration: Storage to Content Script', () => {
   });
 
   it('should toggle clicker state in background script via commands', async () => {
-    await import('./background');
+    await import('../src/background');
     const onCommandCallback = (browser.commands.onCommand.addListener as jest.Mock).mock.calls[0][0];
 
     onCommandCallback('start-clicking');

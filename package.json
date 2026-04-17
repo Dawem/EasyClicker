@@ -4,7 +4,7 @@
   "description": "Firefox: https://addons.mozilla.org/en-CA/firefox/addon/easy-clicker/",
   "main": "background.js",
   "scripts": {
-    "build": "tsc --noEmit && esbuild background.ts content.ts popup.ts import_portal.ts --bundle --outdir=compiled --platform=browser --target=es2020",
+    "build": "tsc --noEmit && esbuild src/background.ts src/content.ts src/popup.ts src/import_portal.ts --bundle --outdir=compiled --platform=browser --target=es2020",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "test": "jest"

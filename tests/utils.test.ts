@@ -1,5 +1,5 @@
-import { generateConciseTitle, getApexDomain, matchPatternToRegExp } from './utils';
-import { ClickItem } from './types';
+import { generateConciseTitle, getApexDomain, matchPatternToRegExp } from '../src/utils';
+import { ClickItem } from '../src/types';
 
 function createMockItem(overrides: Partial<ClickItem>): ClickItem {
   return {
