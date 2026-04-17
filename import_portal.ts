@@ -31,7 +31,6 @@ fileInput.addEventListener('change', (e: Event) => {
 
       if (importType === 'single') {
         if (parsed && parsed.id && parsed.name && Array.isArray(parsed.items)) {
-          // Single import logic
           parsed.id = Date.now().toString();
           let newName = parsed.name;
           let copyNum = 1;
@@ -57,7 +56,6 @@ fileInput.addEventListener('change', (e: Event) => {
           showError('Invalid single preset file format.');
         }
       } else {
-        // Bulk import logic - append rather than replace
         if (Array.isArray(parsed)) {
           let firstNewId: string | null = null;
           parsed.forEach((importedPreset, idx) => {

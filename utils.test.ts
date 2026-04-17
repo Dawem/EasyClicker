@@ -1,4 +1,4 @@
-import { generateConciseTitle } from './utils';
+import { generateConciseTitle, matchPatternToRegExp } from './utils';
 import { ClickItem } from './types';
 
 function createMockItem(overrides: Partial<ClickItem>): ClickItem {
@@ -50,5 +50,41 @@ describe('generateConciseTitle', () => {
   it('should default to tag name if no ID or class in last node', () => {
     const item = createMockItem({ selector: 'section > article' });
     expect(generateConciseTitle(item, 'section > article')).toBe('Click Article');
+  });
+});
+
+describe('matchPatternToRegExp', () => {
+  it('should match all URLs with <all_urls>', () => {
+    const re = matchPatternToRegExp('<all_urls>');
+    expect(re.test('https://example.com')).toBe(true);
+    expect(re.test('http://sub.domain.org/path')).toBe(true);
+    expect(re.test('file:///C:/test.txt')).toBe(true);
+  });
+
+  it('should match wildcard subdomains', () => {
+    const re = matchPatternToRegExp('*://*.example.com/*');
+    expect(re.test('https://example.com/')).toBe(true);
+    expect(re.test('http://www.example.com/some/path')).toBe(true);
+    expect(re.test('https://sub.sub.example.com/')).toBe(true);
+    expect(re.test('https://example.org/')).toBe(false);
+  });
+
+  it('should match specific schemes and paths', () => {
+    const re = matchPatternToRegExp('https://example.com/specific-page');
+    expect(re.test('https://example.com/specific-page')).toBe(true);
+    expect(re.test('http://example.com/specific-page')).toBe(false);
+    expect(re.test('https://example.com/other')).toBe(false);
+  });
+
+  it('should handles wildcards in paths', () => {
+    const re = matchPatternToRegExp('https://example.com/products/*');
+    expect(re.test('https://example.com/products/123')).toBe(true);
+    expect(re.test('https://example.com/products/category/item')).toBe(true);
+    expect(re.test('https://example.com/about')).toBe(false);
+  });
+
+  it('should handle malformed patterns gracefully', () => {
+    const re = matchPatternToRegExp('not-a-pattern');
+    expect(re.test('https://anything.com')).toBe(false);
   });
 });

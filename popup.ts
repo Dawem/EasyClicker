@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import { ClickItem, Preset } from './types';
-import { generateConciseTitle } from './utils';
+import { generateConciseTitle, matchPatternToRegExp } from './utils';
 
 const addSection = document.getElementById('addSection') as HTMLElement;
 const toggleFormBtn = document.getElementById('toggleFormBtn') as HTMLElement;
@@ -113,56 +113,6 @@ function updateProgressBars() {
   rafId = requestAnimationFrame(updateProgressBars);
 }
 
-// Synchronizes filtering capability matching pattern testing natively in the frontend menu
-function escapeRegexHost(host) {
-  return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
-}
-
-function matchPatternToRegExp(pattern) {
-  if (!pattern || pattern.trim() === '') return /.*/;
-  if (pattern === '<all_urls>') {
-    return /^(?:http|https|file|ftp):\/\/.*/;
-  }
-
-  let regex = '^';
-  const parts = pattern.split('://');
-  if (parts.length !== 2) return /$.^/;
-
-  const scheme = parts[0];
-  const hostAndPath = parts[1];
-
-  if (scheme === '*') {
-    regex += '(http|https)://';
-  } else {
-    regex += escapeRegexHost(scheme) + '://';
-  }
-
-  let hostIndex = hostAndPath.indexOf('/');
-  if (hostIndex === -1) hostIndex = hostAndPath.length;
-
-  const host = hostAndPath.substring(0, hostIndex);
-  let path = hostAndPath.substring(hostIndex);
-  if (path === '') path = '/';
-
-  if (host === '*') {
-    regex += '[^/]+';
-  } else if (host.startsWith('*.')) {
-    const mainHost = escapeRegexHost(host.substring(2));
-    regex += `(?:[^/]+\.)?${mainHost}`;
-  } else {
-    regex += escapeRegexHost(host);
-  }
-
-  regex += path.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/\\\*/g, '.*');
-
-  regex += '$';
-  try {
-    return new RegExp(regex);
-  } catch (_e) {
-    return /$.^/;
-  }
-}
-
 function initTabContext() {
   browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
     if (tabs.length > 0 && tabs[0].url) {
@@ -175,7 +125,6 @@ function initTabContext() {
 
           if (parts.length > 2) {
             const sld = parts[parts.length - 2];
-            // Handle regional TLDs like .co.uk or .com.au
             if (sld.length <= 3) {
               apexDomain = parts.slice(-3).join('.');
             } else {
@@ -188,11 +137,8 @@ function initTabContext() {
             matchPatternInput.value = defaultMatchPattern;
           }
         }
-      } catch (_e) {
-        // Not a standard URL, disregard
-      }
+      } catch (_e) {}
     }
-    // Renders the list again after grabbing the URL gracefully resolving filtering checks
     renderList();
   });
 }
@@ -716,7 +662,7 @@ presetConfirmBtn.addEventListener('click', () => {
       }
     } else {
       const id = Date.now().toString();
-      items = []; // Clear current items for new preset
+      items = [];
       presets.push({
         id,
         name: name.trim(),
@@ -912,7 +858,6 @@ browser.storage.onChanged.addListener((changes: Record<string, any>) => {
     activeSequenceItemStart = changes.activeSequenceItemStart.newValue as number;
   }
   if (changes.presets && changes.presets.newValue) {
-    // Basic check to see if presets actually changed (by JSON stringify comparison)
     if (JSON.stringify(changes.presets.newValue) !== JSON.stringify(presets)) {
       presets = changes.presets.newValue;
       renderPresets();
@@ -960,7 +905,6 @@ browser.storage.local
       currentPresetId = res.currentPresetId as string;
     }
 
-    // Bootstrap Default preset if none exist
     if (presets.length === 0) {
       presets = [
         {
@@ -1056,7 +1000,6 @@ browser.storage.local
         return item as ClickItem;
       });
     }
-    // Initialize rendering list & async active URL
     renderList();
     initTabContext();
   });

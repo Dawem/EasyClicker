@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import { ClickItem, Preset, StorageData } from './types';
-import { generateConciseTitle } from './utils';
+import { generateConciseTitle, matchPatternToRegExp } from './utils';
 
 let itemIntervalIds: number[] = [];
 let isRunning = false;
@@ -266,54 +266,6 @@ function clickHandler(e: MouseEvent): void {
   });
 }
 
-function escapeRegexHost(host) {
-  return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
-}
-
-function matchPatternToRegExp(pattern: string): RegExp {
-  if (pattern === '<all_urls>') {
-    return /^(?:http|https|file|ftp):\/\/.*/;
-  }
-
-  let regex = '^';
-  const parts = pattern.split('://');
-  if (parts.length !== 2) return /$.^/;
-
-  const scheme = parts[0];
-  const hostAndPath = parts[1];
-
-  if (scheme === '*') {
-    regex += '(http|https)://';
-  } else {
-    regex += escapeRegexHost(scheme) + '://';
-  }
-
-  let hostIndex = hostAndPath.indexOf('/');
-  if (hostIndex === -1) hostIndex = hostAndPath.length;
-
-  const host = hostAndPath.substring(0, hostIndex);
-  let path = hostAndPath.substring(hostIndex);
-  if (path === '') path = '/';
-
-  if (host === '*') {
-    regex += '[^/]+';
-  } else if (host.startsWith('*.')) {
-    const mainHost = escapeRegexHost(host.substring(2));
-    regex += `(?:[^/]+\.)?${mainHost}`;
-  } else {
-    regex += escapeRegexHost(host);
-  }
-
-  regex += path.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/\\\*/g, '.*');
-
-  regex += '$';
-  try {
-    return new RegExp(regex);
-  } catch (_e) {
-    return /$.^/;
-  }
-}
-
 function clickElement(item) {
   const finalSelector = item.type === 'any' ? item.selector : item.type + (item.selector || '');
   if (!finalSelector) return;
@@ -398,7 +350,6 @@ function startClicker() {
         }
       });
     } else {
-      // Sequence Mode
       while (isRunning && !sequenceStopFlag && mySequenceId === sequenceId) {
         let processedAny = false;
         for (let i = 0; i < items.length; i++) {
@@ -496,7 +447,7 @@ function enforceOverlayBounds() {
   pageOverlayEl.style.left = overlayPosX + 'px';
   pageOverlayEl.style.top = overlayPosY + 'px';
   pageOverlayEl.style.right = 'auto';
-  pageOverlayEl.style.bottom = 'auto'; // Disable CSS lock
+  pageOverlayEl.style.bottom = 'auto';
 }
 
 window.addEventListener('resize', () => {
@@ -623,8 +574,7 @@ function updatePageOverlay() {
     pageOverlayEl.id = 'ec-page-overlay';
 
     if (overlayPosX === -1 || overlayPosY === -1) {
-      // Default to top-right
-      overlayPosX = window.innerWidth - 300 - 20; // 280w + 20 padding
+      overlayPosX = window.innerWidth - 300 - 20;
       overlayPosY = 20;
     }
 
@@ -998,7 +948,7 @@ function startPicker() {
     pickerOverlay.style.fontSize = '12px';
     pickerOverlay.style.fontFamily = 'monospace';
     pickerOverlay.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-    pickerOverlay.style.pointerEvents = 'none'; // Critical to prevent blocking hover events
+    pickerOverlay.style.pointerEvents = 'none';
     pickerOverlay.style.border = '1px solid #3b82f6';
     pickerOverlay.style.whiteSpace = 'pre-wrap';
     pickerOverlay.style.maxWidth = '300px';
