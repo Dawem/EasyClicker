@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 import { ClickItem, Preset } from './types';
+import { generateConciseTitle } from './utils';
 
 const addSection = document.getElementById('addSection') as HTMLElement;
 const toggleFormBtn = document.getElementById('toggleFormBtn') as HTMLElement;
@@ -255,37 +256,6 @@ pickBtn.addEventListener('click', () => {
       });
     });
 });
-
-function generateConciseTitle(item: ClickItem, fullSel: string): string {
-  if (item.targetText) {
-    return `Click "${item.targetText.substring(0, 20)}${item.targetText.length > 20 ? '...' : ''}"`;
-  }
-  let lastNode = fullSel;
-  if (lastNode.includes('>')) {
-    const parts = lastNode.split('>');
-    lastNode = parts[parts.length - 1].trim();
-  }
-  lastNode = lastNode.replace(/:nth-[a-z-]+\([0-9]+\)/g, '');
-
-  let tagExtracted = 'Element';
-  const tagMatch = lastNode.match(/^[a-zA-Z0-9_-]+/);
-  if (tagMatch) {
-    tagExtracted = tagMatch[0];
-    lastNode = lastNode.substring(tagExtracted.length);
-    tagExtracted = tagExtracted.charAt(0).toUpperCase() + tagExtracted.slice(1);
-  }
-
-  let conciseTitle = '';
-  if (lastNode.includes('#')) {
-    const idMatch = lastNode.match(/#[a-zA-Z0-9_-]+/);
-    if (idMatch) conciseTitle = `${tagExtracted} ${idMatch[0]}`;
-  } else if (lastNode.includes('.')) {
-    const classMatch = lastNode.match(/\.[a-zA-Z0-9_-]+/);
-    if (classMatch) conciseTitle = `${tagExtracted} ${classMatch[0]}`;
-  }
-
-  return 'Click ' + (conciseTitle || tagExtracted);
-}
 
 function createListItem(item: ClickItem): HTMLElement {
   const el = document.createElement('div');

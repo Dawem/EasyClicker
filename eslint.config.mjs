@@ -34,6 +34,7 @@ export default tseslint.config(
         "varsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_"
       }],
+      "@typescript-eslint/no-require-imports": "off",
       "no-console": "off",
       "prettier/prettier": "warn",
     },

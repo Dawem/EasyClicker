@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 import { ClickItem, Preset, StorageData } from './types';
+import { generateConciseTitle } from './utils';
 
 let itemIntervalIds: number[] = [];
 let isRunning = false;
@@ -36,7 +37,10 @@ function addClickableHighlights() {
       isClickable = true;
     } else if (el.hasAttribute('onclick') || (el as any).onclick === 'function') {
       isClickable = true;
-    } else if (el.hasAttribute('role') && ['button', 'link', 'menuitem', 'tab'].includes(el.getAttribute('role') || '')) {
+    } else if (
+      el.hasAttribute('role') &&
+      ['button', 'link', 'menuitem', 'tab'].includes(el.getAttribute('role') || '')
+    ) {
       isClickable = true;
     } else {
       const computed = window.getComputedStyle(el);
@@ -389,8 +393,8 @@ function startClicker() {
           const itemIntervalMs =
             item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : globalIntervalMs;
 
-          const id = setInterval(() => processItem(item), itemIntervalMs);
-          itemIntervalIds.push(id);
+          const id = window.setInterval(() => processItem(item), itemIntervalMs);
+          itemIntervalIds.push(id as any);
         }
       });
     } else {
@@ -410,7 +414,7 @@ function startClicker() {
 
             await new Promise((resolve) => {
               currentSequenceResolve = resolve;
-              currentSequenceTimer = setTimeout(resolve, itemIntervalMs);
+              currentSequenceTimer = window.setTimeout(resolve, itemIntervalMs) as any;
             });
             if (currentSequenceResolve) currentSequenceResolve = null;
           }
@@ -418,7 +422,7 @@ function startClicker() {
         if (!processedAny) {
           await new Promise((resolve) => {
             currentSequenceResolve = resolve;
-            currentSequenceTimer = setTimeout(resolve, 1000);
+            currentSequenceTimer = window.setTimeout(resolve, 1000) as any;
           });
           if (currentSequenceResolve) currentSequenceResolve = null;
         }
@@ -458,37 +462,6 @@ let overlayCurrentPresetId = 'default';
 let overlayPosX = -1;
 let overlayPosY = -1;
 let overlayPositions: Record<string, { x: number; y: number }> = {};
-
-function generateConciseTitle(item: ClickItem, fullSel: string): string {
-  if (item.targetText) {
-    return `Click "${item.targetText.substring(0, 20)}${item.targetText.length > 20 ? '...' : ''}"`;
-  }
-  let lastNode = fullSel;
-  if (lastNode.includes('>')) {
-    const parts = lastNode.split('>');
-    lastNode = parts[parts.length - 1].trim();
-  }
-  lastNode = lastNode.replace(/:nth-[a-z-]+\([0-9]+\)/g, '');
-
-  let tagExtracted = 'Element';
-  const tagMatch = lastNode.match(/^[a-zA-Z0-9_-]+/);
-  if (tagMatch) {
-    tagExtracted = tagMatch[0];
-    lastNode = lastNode.substring(tagExtracted.length);
-    tagExtracted = tagExtracted.charAt(0).toUpperCase() + tagExtracted.slice(1);
-  }
-
-  let conciseTitle = '';
-  if (lastNode.includes('#')) {
-    const idMatch = lastNode.match(/#[a-zA-Z0-9_-]+/);
-    if (idMatch) conciseTitle = `${tagExtracted} ${idMatch[0]}`;
-  } else if (lastNode.includes('.')) {
-    const classMatch = lastNode.match(/\.[a-zA-Z0-9_-]+/);
-    if (classMatch) conciseTitle = `${tagExtracted} ${classMatch[0]}`;
-  }
-
-  return 'Click ' + (conciseTitle || tagExtracted);
-}
 
 let isPinnedRight = false;
 let isPinnedBottom = false;
@@ -928,7 +901,7 @@ function updatePageOverlay() {
 
   if (isRunning) {
     if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(updateProgressBars);
+    rafId = window.requestAnimationFrame(updateProgressBars);
   }
 
   if (pageOverlayEl) {
