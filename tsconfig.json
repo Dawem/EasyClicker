@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "module": "esnext",
+    "moduleResolution": "bundler",
     "target": "es2020",
     "lib": ["es2020", "dom"],
-
-    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "sourceMap": true,
     "declaration": true,
@@ -15,7 +14,6 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
     "types": ["chrome", "webextension-polyfill", "jest", "node"]
   },
   "exclude": ["node_modules"]

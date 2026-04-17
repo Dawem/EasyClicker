@@ -1,15 +1,4 @@
-import 'jest-webextension-mock';
 import browser from 'webextension-polyfill';
-
-(global as any).chrome = (global as any).chrome || {
-  runtime: { id: 'test-id' },
-  storage: { local: { get: jest.fn(), set: jest.fn(), onChanged: { addListener: jest.fn() } } },
-  tabs: { query: jest.fn() },
-};
-
-jest.mock('webextension-polyfill', () => {
-  return (global as any).chrome;
-});
 
 describe('UI Functions', () => {
   beforeEach(() => {
@@ -81,7 +70,7 @@ describe('UI Functions', () => {
   });
 
   it('should correctly escape host for regex', async () => {
-    require('./popup');
+    await import('./popup');
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -89,14 +78,14 @@ describe('UI Functions', () => {
     expect(matchPatternInput.value).toBe('*://*.example.com/*');
   });
 
-  it('should render items in the list', () => {
+  it('should render items in the list', async () => {
     (browser.storage.local.get as jest.Mock).mockResolvedValue({
       items: [{ id: '1', selector: '.btn', enabled: true, matchPattern: '.*', type: 'any', matchType: 'all' }],
       presets: [],
       currentPresetId: 'default',
     });
 
-    require('./popup');
+    await import('./popup');
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
@@ -107,8 +96,8 @@ describe('UI Functions', () => {
     });
   });
 
-  it('should toggle visibility of sections', () => {
-    require('./popup');
+  it('should toggle visibility of sections', async () => {
+    await import('./popup');
     const toggleFormBtn = document.getElementById('toggleFormBtn');
     const addSection = document.getElementById('addSection');
 
@@ -129,7 +118,7 @@ describe('UI Functions', () => {
       currentPresetId: 'default',
     });
 
-    require('./popup');
+    await import('./popup');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -149,7 +138,7 @@ describe('UI Functions', () => {
       currentPresetId: 'default',
     });
 
-    require('./popup');
+    await import('./popup');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -162,7 +151,7 @@ describe('UI Functions', () => {
   });
 
   it('should add a new item via form', async () => {
-    require('./popup');
+    await import('./popup');
 
     (document.getElementById('elementType') as HTMLSelectElement).value = 'any';
     (document.getElementById('selector') as HTMLInputElement).value = '.new-item';
@@ -175,8 +164,8 @@ describe('UI Functions', () => {
     expect(elementList?.innerHTML).toContain('New Item');
   });
 
-  it('should update status button based on running state', () => {
-    require('./popup');
+  it('should update status button based on running state', async () => {
+    await import('./popup');
     const toggleStartStopBtn = document.getElementById('toggleStartStopBtn');
 
     const onChangedCallback = (browser.storage.onChanged.addListener as jest.Mock).mock.calls[0][0];
@@ -188,8 +177,8 @@ describe('UI Functions', () => {
     expect(toggleStartStopBtn?.textContent).toBe('Start');
   });
 
-  it('should update selector placeholder based on element type', () => {
-    require('./popup');
+  it('should update selector placeholder based on element type', async () => {
+    await import('./popup');
     const elementTypeObj = document.getElementById('elementType') as HTMLSelectElement;
     const selectorInput = document.getElementById('selector') as HTMLInputElement;
 
@@ -202,8 +191,8 @@ describe('UI Functions', () => {
     expect(selectorInput.placeholder).toContain('(Optional)');
   });
 
-  it('should toggle settings view', () => {
-    require('./popup');
+  it('should toggle settings view', async () => {
+    await import('./popup');
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsView = document.getElementById('settingsView');
     const mainView = document.getElementById('mainView');
@@ -238,7 +227,7 @@ describe('UI Functions', () => {
       return 1;
     });
 
-    require('./popup');
+    await import('./popup');
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 

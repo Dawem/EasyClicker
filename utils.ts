@@ -31,6 +31,33 @@ export function generateConciseTitle(item: ClickItem, fullSel: string): string {
   return 'Click ' + (conciseTitle || tagExtracted);
 }
 
+export function getApexDomain(hostname: string): string {
+  if (!hostname) return '';
+  const parts = hostname.split('.');
+  if (parts.length <= 2) return hostname;
+
+  const sld = parts[parts.length - 2];
+  if (sld.length <= 3) {
+    return parts.slice(-3).join('.');
+  }
+  return parts.slice(-2).join('.');
+}
+
+export function createElement<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Record<string, unknown> = {},
+  style: Partial<CSSStyleDeclaration> = {},
+): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tag);
+  const { style: propsStyle, ...otherProps } = props;
+  Object.assign(el, otherProps);
+  Object.assign(el.style, {
+    ...(typeof propsStyle === 'object' && propsStyle !== null ? propsStyle : {}),
+    ...style,
+  });
+  return el;
+}
+
 export function escapeRegexHost(host: string): string {
   return host.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
 }

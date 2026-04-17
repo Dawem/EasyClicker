@@ -1,4 +1,4 @@
-import { generateConciseTitle, matchPatternToRegExp } from './utils';
+import { generateConciseTitle, getApexDomain, matchPatternToRegExp } from './utils';
 import { ClickItem } from './types';
 
 function createMockItem(overrides: Partial<ClickItem>): ClickItem {
@@ -86,5 +86,26 @@ describe('matchPatternToRegExp', () => {
   it('should handle malformed patterns gracefully', () => {
     const re = matchPatternToRegExp('not-a-pattern');
     expect(re.test('https://anything.com')).toBe(false);
+  });
+});
+
+describe('getApexDomain', () => {
+  it('should return the hostname if it has only two parts', () => {
+    expect(getApexDomain('example.com')).toBe('example.com');
+  });
+
+  it('should return the last two parts for standard domains', () => {
+    expect(getApexDomain('www.example.com')).toBe('example.com');
+    expect(getApexDomain('sub.www.example.com')).toBe('example.com');
+  });
+
+  it('should return the last three parts for short SLDs', () => {
+    expect(getApexDomain('example.co.uk')).toBe('example.co.uk');
+    expect(getApexDomain('www.example.co.uk')).toBe('example.co.uk');
+    expect(getApexDomain('sub.example.com.br')).toBe('example.com.br');
+  });
+
+  it('should handle empty input', () => {
+    expect(getApexDomain('')).toBe('');
   });
 });

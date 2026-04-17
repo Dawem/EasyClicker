@@ -32,3 +32,13 @@ export interface StorageData {
   activeSequenceItemStart: number;
   overlayPositions: Record<string, { x: number; y: number }>;
 }
+
+export interface DraftItem {
+  type: string;
+  matchType: string;
+  customName: string;
+  targetText: string;
+  matchPattern: string;
+  interval: string;
+  editId: string;
+}

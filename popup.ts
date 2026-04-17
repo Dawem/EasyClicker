@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
-import { ClickItem, Preset } from './types';
-import { generateConciseTitle, matchPatternToRegExp } from './utils';
+import { ClickItem, DraftItem, Preset, StorageData } from './types';
+import { generateConciseTitle, getApexDomain, matchPatternToRegExp, createElement } from './utils';
 
 const addSection = document.getElementById('addSection') as HTMLElement;
 const toggleFormBtn = document.getElementById('toggleFormBtn') as HTMLElement;
@@ -120,18 +120,7 @@ function initTabContext() {
       try {
         const url = new URL(tabs[0].url);
         if (url.hostname) {
-          const parts = url.hostname.split('.');
-          let apexDomain = url.hostname;
-
-          if (parts.length > 2) {
-            const sld = parts[parts.length - 2];
-            if (sld.length <= 3) {
-              apexDomain = parts.slice(-3).join('.');
-            } else {
-              apexDomain = parts.slice(-2).join('.');
-            }
-          }
-
+          const apexDomain = getApexDomain(url.hostname);
           defaultMatchPattern = `*://*.${apexDomain}/*`;
           if (!matchPatternInput.value && !editIdInput.value) {
             matchPatternInput.value = defaultMatchPattern;
@@ -145,24 +134,25 @@ function initTabContext() {
 
 const dashboardView = document.getElementById('dashboardView') as HTMLElement;
 
-function openForm() {
-  settingsView.style.display = 'none';
-  settingsBtn.style.background = 'var(--surface-color)';
-  settingsBtn.style.color = 'var(--text-main)';
-  mainView.style.display = 'flex';
+function showView(viewName: 'main' | 'form' | 'settings') {
+  mainView.style.display = viewName === 'main' ? 'flex' : 'none';
+  settingsView.style.display = viewName === 'settings' ? 'flex' : 'none';
+  addSection.style.display = viewName === 'form' ? 'block' : 'none';
+  dashboardView.style.display = viewName === 'form' ? 'none' : 'flex';
 
-  addSection.style.display = 'block';
-  toggleFormBtn.style.display = 'none';
-  dashboardView.style.display = 'none';
-  settingsBtn.style.display = 'none';
+  const isSettings = viewName === 'settings';
+  settingsBtn.style.background = isSettings ? 'var(--accent-primary)' : 'var(--surface-color)';
+  settingsBtn.style.color = isSettings ? '#fff' : 'var(--text-main)';
+  settingsBtn.style.display = viewName === 'form' ? 'none' : 'flex';
+  toggleFormBtn.style.display = viewName === 'main' ? 'flex' : 'none';
+}
+
+function openForm() {
+  showView('form');
 }
 
 function closeForm() {
-  addSection.style.display = 'none';
-  toggleFormBtn.style.display = 'flex';
-  dashboardView.style.display = 'flex';
-  settingsBtn.style.display = 'flex';
-
+  showView('main');
   editIdInput.value = '';
   addUpdateBtn.textContent = 'Add Element';
   addUpdateBtn.classList.remove('edit-mode');
@@ -203,120 +193,141 @@ pickBtn.addEventListener('click', () => {
     });
 });
 
-function createListItem(item: ClickItem): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'element-item';
-  el.dataset.itemId = item.id;
-  el.draggable = true;
+function createIconBtn(
+  innerHTML: string,
+  title: string,
+  onClick: () => void,
+  className = 'icon-btn',
+): HTMLButtonElement {
+  return createElement('button', {
+    className,
+    innerHTML,
+    title,
+    onclick: (e: MouseEvent) => {
+      e.stopPropagation();
+      onClick();
+    },
+  });
+}
 
-  const dragHandle = document.createElement('div');
-  dragHandle.innerHTML = '⋮⋮';
-  dragHandle.style.cursor = 'grab';
-  dragHandle.style.color = 'var(--text-muted)';
-  dragHandle.style.fontSize = '14px';
-  dragHandle.style.paddingRight = '4px';
-  dragHandle.style.userSelect = 'none';
+function createListItem(item: ClickItem): HTMLElement {
+  const el = createElement('div', {
+    className: 'element-item',
+    draggable: true,
+  });
+  el.dataset.itemId = item.id;
+
+  const dragHandleStyles = {
+    cursor: 'grab',
+    color: 'var(--text-muted)',
+    fontSize: '14px',
+    paddingRight: '4px',
+    userSelect: 'none',
+  };
+
+  const dragHandle = createElement('div', {
+    innerHTML: '⋮⋮',
+    style: { ...dragHandleStyles },
+  });
   el.appendChild(dragHandle);
 
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.className = 'item-checkbox';
-  checkbox.checked = item.enabled;
-  checkbox.addEventListener('change', () => {
+  const checkbox = createElement('input', {
+    type: 'checkbox',
+    className: 'item-checkbox',
+    checked: item.enabled,
+  });
+  checkbox.onchange = () => {
     item.enabled = checkbox.checked;
     saveItems();
+  };
+
+  const info = createElement('div', { className: 'item-info' });
+
+  const fullSel = item.type === 'any' ? item.selector : item.type + (item.selector || '');
+  const selDiv = createElement('div', {
+    className: 'item-selector',
+    textContent: item.customName ? item.customName : generateConciseTitle(item, fullSel),
+    title: fullSel,
   });
 
-  const info = document.createElement('div');
-  info.className = 'item-info';
-
-  const selDiv = document.createElement('div');
-  selDiv.className = 'item-selector';
-  const fullSel = item.type === 'any' ? item.selector : item.type + (item.selector || '');
-
-  selDiv.textContent = item.customName ? item.customName : generateConciseTitle(item, fullSel);
-  selDiv.title = fullSel;
-
-  const matchBadge = document.createElement('span');
-  matchBadge.className = 'match-badge';
-  matchBadge.textContent = item.matchType || 'first';
+  const matchBadge = createElement('span', {
+    className: 'match-badge',
+    textContent: item.matchType || 'first',
+  });
   selDiv.appendChild(matchBadge);
   info.appendChild(selDiv);
 
   if (item.interval) {
-    const extrasDiv = document.createElement('div');
-    extrasDiv.className = 'item-text';
-
-    const extras: string[] = [];
-    extras.push(`Speed: ${item.interval}s`);
-
-    extrasDiv.textContent = extras.join(' | ');
+    const extrasDiv = createElement('div', {
+      className: 'item-text',
+      textContent: `Speed: ${item.interval}s`,
+    });
     info.appendChild(extrasDiv);
   }
 
-  const actions = document.createElement('div');
-  actions.className = 'item-actions';
+  const actions = createElement('div', { className: 'item-actions' });
 
-  const editBtn = document.createElement('button');
-  editBtn.className = 'icon-btn';
-  editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`;
-  editBtn.title = 'Edit';
-  editBtn.addEventListener('click', () => {
-    openForm();
-    elementTypeObj.value = item.type || 'any';
-    matchTypeObj.value = item.matchType || 'first';
-    selectorInput.value = item.selector || '';
-    customNameInput.value = item.customName || '';
-    targetTextInput.value = item.targetText || '';
-    matchPatternInput.value = item.matchPattern || '';
-    itemIntervalInput.value = item.interval || '';
-    editIdInput.value = item.id;
-    addUpdateBtn.textContent = 'Update Element';
-    addUpdateBtn.classList.add('edit-mode');
-    selectorError.style.display = 'none';
-    toggleSelectorPlaceholder();
-  });
+  actions.appendChild(
+    createIconBtn(
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
+      'Edit',
+      () => {
+        openForm();
+        elementTypeObj.value = item.type || 'any';
+        matchTypeObj.value = item.matchType || 'first';
+        selectorInput.value = item.selector || '';
+        customNameInput.value = item.customName || '';
+        targetTextInput.value = item.targetText || '';
+        matchPatternInput.value = item.matchPattern || '';
+        itemIntervalInput.value = item.interval || '';
+        editIdInput.value = item.id;
+        addUpdateBtn.textContent = 'Update Element';
+        addUpdateBtn.classList.add('edit-mode');
+        selectorError.style.display = 'none';
+        toggleSelectorPlaceholder();
+      },
+    ),
+  );
 
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'icon-btn';
-  copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-  copyBtn.title = 'Duplicate';
-  copyBtn.addEventListener('click', () => {
-    const newItem = JSON.parse(JSON.stringify(item));
-    newItem.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-    const index = items.findIndex((i) => i.id === item.id);
-    if (index > -1) {
-      items.splice(index + 1, 0, newItem);
-    } else {
-      items.push(newItem);
-    }
-    saveItems();
-    renderList();
-  });
+  actions.appendChild(
+    createIconBtn(
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+      'Duplicate',
+      () => {
+        const newItem = JSON.parse(JSON.stringify(item));
+        newItem.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        const index = items.findIndex((i) => i.id === item.id);
+        if (index > -1) {
+          items.splice(index + 1, 0, newItem);
+        } else {
+          items.push(newItem);
+        }
+        saveItems();
+        renderList();
+      },
+    ),
+  );
 
-  const removeBtn = document.createElement('button');
-  removeBtn.className = 'icon-btn danger';
-  removeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-  removeBtn.title = 'Remove';
-  removeBtn.addEventListener('click', () => {
-    items = items.filter((i) => i.id !== item.id);
-    if (editIdInput.value === item.id) closeForm();
-    saveItems();
-    renderList();
-  });
-
-  actions.appendChild(editBtn);
-  actions.appendChild(copyBtn);
-  actions.appendChild(removeBtn);
+  actions.appendChild(
+    createIconBtn(
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+      'Remove',
+      () => {
+        items = items.filter((i) => i.id !== item.id);
+        if (editIdInput.value === item.id) closeForm();
+        saveItems();
+        renderList();
+      },
+      'icon-btn danger',
+    ),
+  );
 
   el.appendChild(checkbox);
   el.appendChild(info);
   el.appendChild(actions);
 
-  const pbContainer = document.createElement('div');
-  pbContainer.className = 'progress-bar-container';
-  const pb = document.createElement('div');
-  pb.className = 'progress-bar';
+  const pbContainer = createElement('div', { className: 'progress-bar-container' });
+  const pb = createElement('div', { className: 'progress-bar' });
   pbContainer.appendChild(pb);
   el.appendChild(pbContainer);
 
@@ -444,14 +455,17 @@ elementList.addEventListener('drop', (e: DragEvent) => {
   });
 });
 
+function getCurrentPreset(): Preset | undefined {
+  if (currentPresetId === 'default') return undefined;
+  return presets.find((x) => x.id === currentPresetId);
+}
+
 function saveItems() {
   browser.storage.local.set({ items: items });
-  if (currentPresetId !== 'default') {
-    const p = presets.find((x) => x.id === currentPresetId);
-    if (p) {
-      p.items = JSON.parse(JSON.stringify(items));
-      savePresets();
-    }
+  const p = getCurrentPreset();
+  if (p) {
+    p.items = JSON.parse(JSON.stringify(items));
+    savePresets();
   }
 }
 
@@ -465,18 +479,16 @@ function savePresets() {
   browser.storage.local.set({ presets, currentPresetId });
 }
 
-function loadPreset(id: string) {
-  if (id !== 'default') {
-    const p = presets.find((x) => x.id === id);
-    if (p) {
-      stopClicker();
-      items = JSON.parse(JSON.stringify(p.items));
-      saveItems();
-      renderList();
-      if (p.runMode) {
-        runModeSelect.value = p.runMode;
-        browser.storage.local.set({ runMode: p.runMode });
-      }
+function loadPreset(_id: string) {
+  const p = getCurrentPreset();
+  if (p) {
+    stopClicker();
+    items = JSON.parse(JSON.stringify(p.items));
+    saveItems();
+    renderList();
+    if (p.runMode) {
+      runModeSelect.value = p.runMode;
+      browser.storage.local.set({ runMode: p.runMode });
     }
   }
 }
@@ -488,7 +500,7 @@ function renderPresets() {
         id: 'default_preset',
         name: 'Default',
         items: items.length > 0 ? JSON.parse(JSON.stringify(items)) : [],
-        runMode: (runModeSelect.value as any) || 'sequence',
+        runMode: runModeSelect.value || 'sequence',
       },
     ];
     currentPresetId = 'default_preset';
@@ -502,9 +514,10 @@ function renderPresets() {
   }
 
   presets.forEach((p) => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.name;
+    const opt = createElement('option', {
+      value: p.id,
+      textContent: p.name,
+    });
     presetSelect.appendChild(opt);
     presetSelectDashboard.appendChild(opt.cloneNode(true));
   });
@@ -517,38 +530,20 @@ function renderPresets() {
 
 settingsBtn.addEventListener('click', () => {
   const isSettingsOpen = settingsView.style.display === 'flex';
-  if (isSettingsOpen) {
-    settingsView.style.display = 'none';
-    mainView.style.display = 'flex';
-    settingsBtn.style.background = 'var(--surface-color)';
-    settingsBtn.style.color = 'var(--text-main)';
-    toggleFormBtn.style.display = 'flex';
-  } else {
-    settingsView.style.display = 'flex';
-    mainView.style.display = 'none';
-    settingsBtn.style.background = 'var(--accent-primary)';
-    settingsBtn.style.color = '#fff';
-    toggleFormBtn.style.display = 'none';
-  }
+  showView(isSettingsOpen ? 'main' : 'settings');
 });
 
 settingsBackBtn.addEventListener('click', () => {
-  settingsView.style.display = 'none';
-  mainView.style.display = 'flex';
-  settingsBtn.style.background = 'var(--surface-color)';
-  settingsBtn.style.color = 'var(--text-main)';
-  toggleFormBtn.style.display = 'flex';
+  showView('main');
 });
 
 runModeSelect.addEventListener('change', () => {
   const val = runModeSelect.value;
   browser.storage.local.set({ runMode: val });
-  if (currentPresetId !== 'default') {
-    const p = presets.find((x) => x.id === currentPresetId);
-    if (p) {
-      p.runMode = val;
-      savePresets();
-    }
+  const p = getCurrentPreset();
+  if (p) {
+    p.runMode = val;
+    savePresets();
   }
 });
 
@@ -567,18 +562,18 @@ presetSelectDashboard.addEventListener('change', () => {
 });
 
 exportSinglePresetBtn.addEventListener('click', () => {
-  let exportData: any = null;
-  if (currentPresetId !== 'default') {
-    exportData = presets.find((x) => x.id === currentPresetId);
-  } else {
-    exportData = { id: Date.now().toString(), name: 'Exported Preset', items: items, runMode: runModeSelect.value };
-  }
+  const exportData = getCurrentPreset() || {
+    id: Date.now().toString(),
+    name: 'Exported Preset',
+    items: items,
+    runMode: runModeSelect.value,
+  };
 
-  if (!exportData) return;
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute('href', dataStr);
-  downloadAnchorNode.setAttribute('download', `easyclicker_${exportData.name.replace(/[^A-Za-z0-9]/g, '_')}.json`);
+  const downloadAnchorNode = createElement('a', {
+    href: dataStr,
+    download: `easyclicker_${exportData.name.replace(/[^A-Za-z0-9]/g, '_')}.json`,
+  });
   document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
@@ -588,7 +583,7 @@ exportSinglePresetBtn.addEventListener('click', () => {
   setTimeout(() => (exportSinglePresetBtn.textContent = oldTxt), 1500);
 });
 
-const openImportWindow = (type) => {
+const openImportWindow = (type: string) => {
   browser.windows.create({
     url: browser.runtime.getURL(`import_portal.html?type=${type}`),
     type: 'popup',
@@ -603,9 +598,10 @@ importSinglePresetBtn.addEventListener('click', () => {
 
 exportPresetBtn.addEventListener('click', () => {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(presets, null, 2));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute('href', dataStr);
-  downloadAnchorNode.setAttribute('download', 'easyclicker_presets.json');
+  const downloadAnchorNode = createElement('a', {
+    href: dataStr,
+    download: 'easyclicker_presets.json',
+  });
   document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
@@ -628,15 +624,13 @@ newPresetBtn.addEventListener('click', () => {
 });
 
 renamePresetBtn.addEventListener('click', () => {
-  if (currentPresetId !== 'default') {
-    const p = presets.find((x) => x.id === currentPresetId);
-    if (p) {
-      isRenaming = true;
-      presetPromptDiv.style.display = 'flex';
-      presetNameInput.value = p.name;
-      presetConfirmBtn.textContent = 'Rename';
-      presetNameInput.focus();
-    }
+  const p = getCurrentPreset();
+  if (p) {
+    isRenaming = true;
+    presetPromptDiv.style.display = 'flex';
+    presetNameInput.value = p.name;
+    presetConfirmBtn.textContent = 'Rename';
+    presetNameInput.focus();
   }
 });
 
@@ -653,13 +647,11 @@ presetNameInput.addEventListener('keydown', (e) => {
 presetConfirmBtn.addEventListener('click', () => {
   const name = presetNameInput.value;
   if (name && name.trim()) {
-    if (isRenaming && currentPresetId !== 'default') {
-      const p = presets.find((x) => x.id === currentPresetId);
-      if (p) {
-        p.name = name.trim();
-        savePresets();
-        renderPresets();
-      }
+    const p = getCurrentPreset();
+    if (isRenaming && p) {
+      p.name = name.trim();
+      savePresets();
+      renderPresets();
     } else {
       const id = Date.now().toString();
       items = [];
@@ -682,7 +674,7 @@ presetConfirmBtn.addEventListener('click', () => {
 });
 
 let deleteConfirmState = false;
-let deleteTimeout: any = null;
+let deleteTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function resetDeleteButtonStyle() {
   if (deleteTimeout) clearTimeout(deleteTimeout);
@@ -783,7 +775,7 @@ addUpdateBtn.addEventListener('click', () => {
   renderList();
 });
 
-function updateStatus(running) {
+function updateStatus(running: boolean) {
   if (running) {
     toggleStartStopBtn.textContent = 'Stop';
     toggleStartStopBtn.style.backgroundColor = 'var(--accent-danger)';
@@ -812,7 +804,7 @@ openOverlayBtn.addEventListener('click', () => {
     browser.storage.local.get(['overlayDomains']).then((res) => {
       browser.storage.local
         .set({
-          overlayDomains: { ...((res.overlayDomains as any) || {}), [url.hostname]: true },
+          overlayDomains: { ...((res.overlayDomains as Record<string, boolean>) || {}), [url.hostname]: true },
         })
         .then(() => {
           window.close();
@@ -823,10 +815,10 @@ openOverlayBtn.addEventListener('click', () => {
   }
 });
 
-browser.storage.onChanged.addListener((changes: Record<string, any>) => {
+browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown; oldValue?: unknown }>) => {
   if (changes.interval && changes.interval.newValue) {
     if (changes.interval.newValue !== intervalInput.value) {
-      globalInterval = parseFloat(changes.interval.newValue) || 1.5;
+      globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
       renderList();
     }
   }
@@ -859,13 +851,13 @@ browser.storage.onChanged.addListener((changes: Record<string, any>) => {
   }
   if (changes.presets && changes.presets.newValue) {
     if (JSON.stringify(changes.presets.newValue) !== JSON.stringify(presets)) {
-      presets = changes.presets.newValue;
+      presets = changes.presets.newValue as Preset[];
       renderPresets();
     }
   }
   if (changes.currentPresetId && changes.currentPresetId.newValue) {
     if (changes.currentPresetId.newValue !== currentPresetId) {
-      currentPresetId = changes.currentPresetId.newValue;
+      currentPresetId = changes.currentPresetId.newValue as string;
       renderPresets();
       loadPreset(currentPresetId);
     }
@@ -889,7 +881,7 @@ browser.storage.local
     'activeSequenceItemId',
     'activeSequenceItemStart',
   ])
-  .then((res: any) => {
+  .then((res: Partial<StorageData & { draftItem: DraftItem; pickedSelector: string; pickedText: string }>) => {
     if (res.runMode) {
       runMode = res.runMode as string;
       runModeSelect.value = runMode;
@@ -910,8 +902,8 @@ browser.storage.local
         {
           id: 'default_preset',
           name: 'Default',
-          items: (res.items || []) as ClickItem[],
-          runMode: (res.runMode || 'sequence') as any,
+          items: items.length > 0 ? JSON.parse(JSON.stringify(items)) : [],
+          runMode: runModeSelect.value || 'sequence',
         },
       ];
       currentPresetId = 'default_preset';
@@ -964,13 +956,13 @@ browser.storage.local
       }
 
       if (res.draftItem) {
-        matchTypeObj.value = (res.draftItem as any).matchType || 'first';
-        customNameInput.value = (res.draftItem as any).customName || '';
-        targetTextInput.value = (res.draftItem as any).targetText || '';
-        matchPatternInput.value = (res.draftItem as any).matchPattern || '';
-        itemIntervalInput.value = (res.draftItem as any).interval || '';
-        editIdInput.value = (res.draftItem as any).editId || '';
-        if ((res.draftItem as any).editId) {
+        matchTypeObj.value = res.draftItem.matchType || 'first';
+        customNameInput.value = res.draftItem.customName || '';
+        targetTextInput.value = res.draftItem.targetText || '';
+        matchPatternInput.value = res.draftItem.matchPattern || '';
+        itemIntervalInput.value = res.draftItem.interval || '';
+        editIdInput.value = res.draftItem.editId || '';
+        if (res.draftItem.editId) {
           addUpdateBtn.textContent = 'Update Element';
           addUpdateBtn.classList.add('edit-mode');
         }
@@ -987,15 +979,16 @@ browser.storage.local
     }
 
     if (res.items && Array.isArray(res.items)) {
-      items = (res.items as any[]).map((item) => {
+      items = (res.items as ClickItem[]).map((item) => {
         if (!item.type) item.type = 'any';
         if (!item.matchType) item.matchType = 'first';
 
-        if (item.domainRegex && !item.matchPattern) {
-          const clean = item.domainRegex.replace(/\\./g, '.');
+        const legacy = item as ClickItem & { domainRegex?: string };
+        if (legacy.domainRegex && !item.matchPattern) {
+          const clean = legacy.domainRegex.replace(/\\./g, '.');
           item.matchPattern = `*://*.${clean}/*`;
         }
-        delete item.domainRegex;
+        delete legacy.domainRegex;
 
         return item as ClickItem;
       });

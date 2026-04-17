@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import { ClickItem, Preset, StorageData } from './types';
-import { generateConciseTitle, matchPatternToRegExp } from './utils';
+import { generateConciseTitle, matchPatternToRegExp, createElement } from './utils';
 
 let itemIntervalIds: number[] = [];
 let isRunning = false;
@@ -12,15 +12,16 @@ let highlightedClickables: HTMLElement[] = [];
 
 function addClickableHighlights() {
   if (!document.getElementById('ec-clickable-styles')) {
-    const style = document.createElement('style');
-    style.id = 'ec-clickable-styles';
-    style.textContent = `
+    const style = createElement('style', {
+      id: 'ec-clickable-styles',
+      textContent: `
       .ec-clickable-element {
         outline: 2px dashed #f59e0b !important;
         outline-offset: -2px !important;
         background-color: rgba(245, 158, 11, 0.2) !important;
       }
-    `;
+    `,
+    });
     document.head.appendChild(style);
   }
 
@@ -35,7 +36,7 @@ function addClickableHighlights() {
       isClickable = true;
     } else if (tag === 'input' && ['button', 'submit', 'checkbox', 'radio'].includes((el as HTMLInputElement).type)) {
       isClickable = true;
-    } else if (el.hasAttribute('onclick') || (el as any).onclick === 'function') {
+    } else if (el.hasAttribute('onclick') || typeof (el as HTMLElement).onclick === 'function') {
       isClickable = true;
     } else if (
       el.hasAttribute('role') &&
@@ -74,14 +75,14 @@ function cleanText(node: HTMLElement): string | null {
   return null;
 }
 
-function isUniqueWithText(selector, textToCheck) {
+function isUniqueWithText(selector: string, textToCheck: string | null): boolean {
   try {
     const els = Array.from(document.querySelectorAll(selector));
     if (els.length === 1 && !textToCheck) return true;
     if (textToCheck) {
       const searchTarget = textToCheck.toLowerCase();
       const filtered = els.filter((n) => {
-        const it = (n.innerText || '').toLowerCase().replace(/\s+/g, ' ');
+        const it = ((n as HTMLElement).innerText || '').toLowerCase().replace(/\s+/g, ' ');
         const tc = (n.textContent || '').toLowerCase().replace(/\s+/g, ' ');
         return it.includes(searchTarget) || tc.includes(searchTarget);
       });
@@ -93,11 +94,11 @@ function isUniqueWithText(selector, textToCheck) {
   }
 }
 
-function getCssSelector(el) {
+function getCssSelector(el: HTMLElement): { path: string; text: string | null } {
   if (el.tagName.toLowerCase() == 'html') return { path: 'html', text: null };
   if (el.tagName.toLowerCase() == 'body') return { path: 'body', text: null };
 
-  const getClasses = (node) => {
+  const getClasses = (node: HTMLElement): string => {
     if (typeof node.className !== 'string' || !node.className.trim()) return '';
     const classes = node.className
       .trim()
@@ -151,7 +152,7 @@ function getCssSelector(el) {
       let sibling = currentEl.parentNode ? currentEl.parentNode.firstElementChild : null;
       while (sibling) {
         if (sibling !== currentEl && sibling.tagName.toLowerCase() === currentEl.tagName.toLowerCase()) {
-          if (getClasses(sibling) === classes) {
+          if (getClasses(sibling as HTMLElement) === classes) {
             needsNth = true;
           }
         }
@@ -178,7 +179,7 @@ function getCssSelector(el) {
       break;
     }
 
-    currentEl = currentEl.parentNode;
+    currentEl = currentEl.parentNode as HTMLElement;
   }
 
   return { path: pathArr.join(' > '), text: usedText ? targetText : null };
@@ -250,8 +251,8 @@ function clickHandler(e: MouseEvent): void {
     highlightEl.style.backgroundColor = highlightEl.dataset.oldBg || '';
   }
 
-  document.removeEventListener('mouseover', hoverHandler as any, true);
-  document.removeEventListener('click', clickHandler as any, true);
+  document.removeEventListener('mouseover', hoverHandler as EventListener, true);
+  document.removeEventListener('click', clickHandler as EventListener, true);
 
   if (pickerOverlay && pickerOverlay.parentNode) {
     pickerOverlay.parentNode.removeChild(pickerOverlay);
@@ -266,7 +267,7 @@ function clickHandler(e: MouseEvent): void {
   });
 }
 
-function clickElement(item) {
+function clickElement(item: ClickItem): void {
   const finalSelector = item.type === 'any' ? item.selector : item.type + (item.selector || '');
   if (!finalSelector) return;
 
@@ -299,7 +300,7 @@ function clickElement(item) {
   }
 }
 
-function canProcessItem(item) {
+function canProcessItem(item: ClickItem): boolean {
   if (!item.matchPattern) return true;
   try {
     const regex = matchPatternToRegExp(item.matchPattern);
@@ -309,15 +310,15 @@ function canProcessItem(item) {
   }
 }
 
-function processItem(item) {
+function processItem(item: ClickItem): void {
   if (canProcessItem(item)) {
     clickElement(item);
   }
 }
 
 let sequenceStopFlag = false;
-let currentSequenceTimer: any = null;
-let currentSequenceResolve: any = null;
+let currentSequenceTimer: number | null = null;
+let currentSequenceResolve: (() => void) | null = null;
 let sequenceId = 0;
 
 let currentRunMode = 'sequence';
@@ -346,7 +347,7 @@ function startClicker() {
             item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : globalIntervalMs;
 
           const id = window.setInterval(() => processItem(item), itemIntervalMs);
-          itemIntervalIds.push(id as any);
+          itemIntervalIds.push(id);
         }
       });
     } else {
@@ -363,17 +364,17 @@ function startClicker() {
 
             browser.storage.local.set({ activeSequenceItemId: item.id, activeSequenceItemStart: Date.now() });
 
-            await new Promise((resolve) => {
+            await new Promise<void>((resolve) => {
               currentSequenceResolve = resolve;
-              currentSequenceTimer = window.setTimeout(resolve, itemIntervalMs) as any;
+              currentSequenceTimer = window.setTimeout(resolve, itemIntervalMs);
             });
             if (currentSequenceResolve) currentSequenceResolve = null;
           }
         }
         if (!processedAny) {
-          await new Promise((resolve) => {
+          await new Promise<void>((resolve) => {
             currentSequenceResolve = resolve;
-            currentSequenceTimer = window.setTimeout(resolve, 1000) as any;
+            currentSequenceTimer = window.setTimeout(resolve, 1000);
           });
           if (currentSequenceResolve) currentSequenceResolve = null;
         }
@@ -553,9 +554,9 @@ function updatePageOverlay() {
 
   if (!pageOverlayEl) {
     if (!document.getElementById('ec-overlay-styles')) {
-      const style = document.createElement('style');
-      style.id = 'ec-overlay-styles';
-      style.textContent = `
+      const style = createElement('style', {
+        id: 'ec-overlay-styles',
+        textContent: `
         .ec-fast-mode {
           width: 100% !important;
           background: linear-gradient(90deg, #3b82f6 0%, #e71c4f 50%, #3b82f6 100%) !important;
@@ -566,185 +567,238 @@ function updatePageOverlay() {
           0% { background-position: 200% 0; }
           100% { background-position: 0 0; }
         }
-      `;
+      `,
+      });
       document.head.appendChild(style);
     }
 
-    pageOverlayEl = document.createElement('div');
-    pageOverlayEl.id = 'ec-page-overlay';
-
+    pageOverlayEl = createElement(
+      'div',
+      { id: 'ec-page-overlay' },
+      {
+        position: 'fixed',
+        left: (overlayPosX === -1 ? window.innerWidth - 300 - 20 : overlayPosX) + 'px',
+        top: (overlayPosY === -1 ? 20 : overlayPosY) + 'px',
+        zIndex: '2147483647',
+        backgroundColor: '#1e293b',
+        color: '#f8fafc',
+        padding: '12px',
+        borderRadius: '8px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '13px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        border: '1px solid #334155',
+        width: '280px',
+        maxHeight: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+      },
+    );
     if (overlayPosX === -1 || overlayPosY === -1) {
       overlayPosX = window.innerWidth - 300 - 20;
       overlayPosY = 20;
     }
-
-    Object.assign(pageOverlayEl.style, {
-      position: 'fixed',
-      left: overlayPosX + 'px',
-      top: overlayPosY + 'px',
-      zIndex: '2147483647',
-      backgroundColor: '#1e293b',
-      color: '#f8fafc',
-      padding: '12px',
-      borderRadius: '8px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      fontSize: '13px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-      border: '1px solid #334155',
-      width: '280px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-    });
     document.body.appendChild(pageOverlayEl);
     enforceOverlayBounds();
   }
 
   pageOverlayEl.innerHTML = '';
 
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.justifyContent = 'space-between';
-  header.style.alignItems = 'center';
-  header.style.cursor = 'grab';
-  header.style.paddingBottom = '4px';
-  header.style.borderBottom = '1px solid #334155';
-  header.onmousedown = () => (header.style.cursor = 'grabbing');
-  header.onmouseup = () => (header.style.cursor = 'grab');
+  const header = createElement(
+    'div',
+    {
+      onmousedown: () => (header.style.cursor = 'grabbing'),
+      onmouseup: () => (header.style.cursor = 'grab'),
+    },
+    {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      cursor: 'grab',
+      paddingBottom: '4px',
+      borderBottom: '1px solid #334155',
+    },
+  );
 
   initDrag(header, pageOverlayEl);
 
-  const title = document.createElement('div');
-  title.style.fontWeight = '700';
-  title.style.fontSize = '14px';
-  title.style.lineHeight = '1';
-  title.innerText = 'Easy Clicker';
+  const title = createElement(
+    'div',
+    { innerText: 'Easy Clicker' },
+    {
+      fontWeight: '700',
+      fontSize: '14px',
+      lineHeight: '1',
+    },
+  );
 
-  const closeBtnWrap = document.createElement('div');
-  Object.assign(closeBtnWrap.style, {
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '4px',
-    backgroundColor: 'transparent',
-    width: '18px',
-    height: '18px',
-  });
+  const closeBtnWrap = createElement(
+    'div',
+    {},
+    {
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '4px',
+      backgroundColor: 'transparent',
+      width: '18px',
+      height: '18px',
+    },
+  );
+
   closeBtnWrap.onmouseover = () => (closeBtnWrap.style.backgroundColor = 'rgba(255,255,255,0.1)');
   closeBtnWrap.onmouseout = () => (closeBtnWrap.style.backgroundColor = 'transparent');
-
-  const closeBtn = document.createElement('div');
-  closeBtn.innerText = '×';
-  Object.assign(closeBtn.style, {
-    fontSize: '20px',
-    lineHeight: '1',
-    color: '#94a3b8',
-    fontWeight: 'bold',
-    paddingBottom: '2px',
-  });
   closeBtnWrap.onclick = () => {
     browser.storage.local.get(['overlayDomains']).then((res) => {
       browser.storage.local.set({
-        overlayDomains: { ...((res.overlayDomains as any) || {}), [window.location.hostname]: false },
+        overlayDomains: {
+          ...((res.overlayDomains as Record<string, boolean>) || {}),
+          [window.location.hostname]: false,
+        },
       });
     });
   };
+
+  const closeBtn = createElement(
+    'div',
+    { innerText: '×' },
+    {
+      fontSize: '20px',
+      lineHeight: '1',
+      color: '#94a3b8',
+      fontWeight: 'bold',
+      paddingBottom: '2px',
+    },
+  );
   closeBtnWrap.appendChild(closeBtn);
 
   header.appendChild(title);
   header.appendChild(closeBtnWrap);
   pageOverlayEl.appendChild(header);
 
-  const listContainer = document.createElement('div');
-  listContainer.style.flex = '1';
-  listContainer.style.overflowY = 'auto';
-  listContainer.style.display = 'flex';
-  listContainer.style.flexDirection = 'column';
-  listContainer.style.gap = '8px';
-  listContainer.style.maxHeight = '250px';
-  listContainer.style.border = '1px solid #334155';
-  listContainer.style.borderRadius = '6px';
-  listContainer.style.padding = '8px';
-  listContainer.style.background = '#0f172a';
-
-  listContainer.style.scrollbarWidth = 'thin';
-  listContainer.style.scrollbarColor = '#334155 transparent';
+  const listContainer = createElement(
+    'div',
+    {},
+    {
+      flex: '1',
+      overflowY: 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      maxHeight: '250px',
+      border: '1px solid #334155',
+      borderRadius: '6px',
+      padding: '8px',
+      background: '#0f172a',
+      scrollbarWidth: 'thin',
+      scrollbarColor: '#334155 transparent',
+    },
+  );
 
   const filteredOverlayItems = currentOverlayItems.filter((item) => canProcessItem(item));
 
   if (filteredOverlayItems.length === 0) {
-    const emptyMsg = document.createElement('div');
-    emptyMsg.innerText = currentOverlayItems.length > 0 ? 'No matching elements on this page' : 'No elements added';
-    emptyMsg.style.color = '#94a3b8';
-    emptyMsg.style.textAlign = 'center';
-    emptyMsg.style.padding = '10px 0';
-    emptyMsg.style.fontSize = '11px';
+    const emptyMsg = createElement(
+      'div',
+      { innerText: currentOverlayItems.length > 0 ? 'No matching elements on this page' : 'No elements added' },
+      {
+        color: '#94a3b8',
+        textAlign: 'center',
+        padding: '10px 0',
+        fontSize: '11px',
+      },
+    );
     listContainer.appendChild(emptyMsg);
   } else {
     filteredOverlayItems.forEach((item) => {
-      const itemRow = document.createElement('div');
-      itemRow.className = 'element-item';
-      itemRow.style.position = 'relative';
-      itemRow.style.display = 'flex';
-      itemRow.style.flexDirection = 'column';
-      itemRow.style.paddingBottom = '4px';
-
+      const itemRow = createElement(
+        'div',
+        { className: 'element-item' },
+        {
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          paddingBottom: '4px',
+        },
+      );
       const itemIntervalMs =
         item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : globalInterval * 1000;
       itemRow.dataset.intervalMs = itemIntervalMs.toString();
       itemRow.dataset.itemId = item.id;
 
-      const elSection = document.createElement('div');
-      elSection.style.display = 'flex';
-      elSection.style.alignItems = 'center';
-      elSection.style.gap = '8px';
+      const elSection = createElement(
+        'div',
+        {},
+        {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        },
+      );
 
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = item.enabled;
-      cb.style.cursor = 'pointer';
-      cb.style.width = '14px';
-      cb.style.height = '14px';
-      cb.style.margin = '0';
-      cb.style.flexShrink = '0';
-      cb.addEventListener('change', () => {
+      const cb = createElement(
+        'input',
+        {
+          type: 'checkbox',
+          checked: item.enabled,
+        },
+        {
+          cursor: 'pointer',
+          width: '14px',
+          height: '14px',
+          margin: '0',
+          flexShrink: '0',
+        },
+      );
+      cb.onchange = () => {
         item.enabled = cb.checked;
         browser.storage.local.set({ items: currentOverlayItems });
-      });
+      };
 
-      const name = document.createElement('div');
-      name.style.flex = '1';
-      name.style.overflow = 'hidden';
-      name.style.textOverflow = 'ellipsis';
-      name.style.whiteSpace = 'nowrap';
-      name.style.fontSize = '12px';
       const fullSel = item.type === 'any' ? item.selector : item.type + (item.selector || '');
-      name.innerText = item.customName ? item.customName : generateConciseTitle(item, fullSel);
-      name.title = fullSel;
+      const name = createElement(
+        'div',
+        {
+          innerText: item.customName ? item.customName : generateConciseTitle(item, fullSel),
+          title: fullSel,
+        },
+        {
+          flex: '1',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          fontSize: '12px',
+        },
+      );
 
       elSection.appendChild(cb);
       elSection.appendChild(name);
       itemRow.appendChild(elSection);
 
-      const pbContainer = document.createElement('div');
-      Object.assign(pbContainer.style, {
-        position: 'absolute',
-        bottom: '0',
-        left: '0',
-        width: '100%',
-        height: '2px',
-        background: 'transparent',
-      });
-      const pb = document.createElement('div');
-      pb.className = 'progress-bar';
-      Object.assign(pb.style, {
-        height: '100%',
-        background: '#3b82f6',
-        width: '0%',
-        transition: 'none',
-      });
+      const pbContainer = createElement(
+        'div',
+        {},
+        {
+          position: 'absolute',
+          bottom: '0',
+          left: '0',
+          width: '100%',
+          height: '2px',
+          background: 'transparent',
+        },
+      );
+      const pb = createElement(
+        'div',
+        { className: 'progress-bar' },
+        {
+          height: '100%',
+          background: '#3b82f6',
+          width: '0%',
+          transition: 'none',
+        },
+      );
       pbContainer.appendChild(pb);
       itemRow.appendChild(pbContainer);
 
@@ -754,44 +808,54 @@ function updatePageOverlay() {
 
   pageOverlayEl.appendChild(listContainer);
 
-  const presetRow = document.createElement('div');
-  Object.assign(presetRow.style, {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    marginBottom: '8px',
-    marginTop: '4px',
-  });
+  const presetRow = createElement(
+    'div',
+    {},
+    {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      marginBottom: '8px',
+      marginTop: '4px',
+    },
+  );
 
-  const presetLabel = document.createElement('div');
-  presetLabel.innerText = 'Preset:';
-  Object.assign(presetLabel.style, { color: '#94a3b8', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' });
+  const presetLabel = createElement(
+    'div',
+    { innerText: 'Preset:' },
+    { color: '#94a3b8', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' },
+  );
 
-  const overlayPresetSelect = document.createElement('select');
-  Object.assign(overlayPresetSelect.style, {
-    flex: '1',
-    background: '#1e293b',
-    color: '#f8fafc',
-    border: '1px solid #334155',
-    borderRadius: '4px',
-    padding: '2px 4px',
-    fontSize: '11px',
-    cursor: 'pointer',
-    outline: 'none',
-  });
+  const overlayPresetSelect = createElement(
+    'select',
+    {},
+    {
+      flex: '1',
+      background: '#1e293b',
+      color: '#f8fafc',
+      border: '1px solid #334155',
+      borderRadius: '4px',
+      padding: '2px 4px',
+      fontSize: '11px',
+      cursor: 'pointer',
+      outline: 'none',
+    },
+  );
 
   if (overlayPresets.length === 0) {
-    const noOpt = document.createElement('option');
-    noOpt.value = 'default';
-    noOpt.innerText = 'No presets saved';
-    noOpt.disabled = true;
-    noOpt.selected = true;
+    const noOpt = createElement('option', {
+      value: 'default',
+      innerText: 'No presets saved',
+      disabled: true,
+      selected: true,
+    });
     overlayPresetSelect.appendChild(noOpt);
   } else {
     overlayPresets.forEach((p) => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.innerText = p.name;
+      const opt = createElement('option', {
+        value: p.id,
+        innerText: p.name,
+      });
       overlayPresetSelect.appendChild(opt);
     });
     overlayPresetSelect.value = overlayCurrentPresetId !== 'default' ? overlayCurrentPresetId : overlayPresets[0].id;
@@ -819,29 +883,30 @@ function updatePageOverlay() {
   presetRow.appendChild(overlayPresetSelect);
   pageOverlayEl.appendChild(presetRow);
 
-  const controls = document.createElement('div');
-  controls.style.display = 'flex';
-  controls.style.gap = '8px';
+  const controls = createElement('div', {}, { display: 'flex', gap: '8px' });
 
-  const toggleBtn = document.createElement('button');
-  toggleBtn.innerText = isRunning ? 'Stop' : 'Start';
-  Object.assign(toggleBtn.style, {
-    width: '100%',
-    flex: '1',
-    padding: '8px',
-    border: 'none',
-    borderRadius: '4px',
-    color: 'white',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '13px',
-    backgroundColor: isRunning ? '#ef4444' : '#3b82f6',
-    transition: 'all 0.2s',
-  });
+  const toggleBtn = createElement(
+    'button',
+    {
+      innerText: isRunning ? 'Stop' : 'Start',
+    },
+    {
+      width: '100%',
+      flex: '1',
+      padding: '8px',
+      border: 'none',
+      borderRadius: '4px',
+      color: 'white',
+      cursor: 'pointer',
+      fontWeight: '600',
+      fontSize: '13px',
+      backgroundColor: isRunning ? '#ef4444' : '#3b82f6',
+      transition: 'all 0.2s',
+    },
+  );
 
   toggleBtn.onmouseover = () => (toggleBtn.style.backgroundColor = isRunning ? '#dc2626' : '#2563eb');
   toggleBtn.onmouseout = () => (toggleBtn.style.backgroundColor = isRunning ? '#ef4444' : '#3b82f6');
-
   toggleBtn.onclick = () => {
     browser.runtime.sendMessage({ action: isRunning ? 'stop' : 'start' });
   };
@@ -862,24 +927,24 @@ function updatePageOverlay() {
   }
 }
 
-browser.storage.onChanged.addListener((changes: Record<string, any>) => {
+browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown; oldValue?: unknown }>) => {
   let needsOverlayUpdate = false;
 
   if (changes.interval && changes.interval.newValue) {
-    globalInterval = parseFloat(changes.interval.newValue) || 1.5;
+    globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
   }
   if (changes.startTime && changes.startTime.newValue) {
-    globalStartTime = changes.startTime.newValue;
+    globalStartTime = changes.startTime.newValue as number;
   }
 
   if (changes.runMode && changes.runMode.newValue) {
-    currentRunMode = changes.runMode.newValue;
+    currentRunMode = changes.runMode.newValue as string;
   }
   if (changes.activeSequenceItemId) {
-    activeSequenceItemId = changes.activeSequenceItemId.newValue;
+    activeSequenceItemId = (changes.activeSequenceItemId.newValue as string | null) ?? null;
   }
   if (changes.activeSequenceItemStart) {
-    activeSequenceItemStart = changes.activeSequenceItemStart.newValue;
+    activeSequenceItemStart = changes.activeSequenceItemStart.newValue as number;
   }
 
   if (changes.items) {
@@ -893,12 +958,12 @@ browser.storage.onChanged.addListener((changes: Record<string, any>) => {
   }
 
   if (changes.currentPresetId) {
-    overlayCurrentPresetId = changes.currentPresetId.newValue || 'default';
+    overlayCurrentPresetId = (changes.currentPresetId.newValue as string) || 'default';
     needsOverlayUpdate = true;
   }
 
   if (changes.overlayPositions) {
-    overlayPositions = changes.overlayPositions.newValue || {};
+    overlayPositions = (changes.overlayPositions.newValue as Record<string, { x: number; y: number }>) || {};
     const pos = overlayPositions[window.location.hostname];
     if (pos) {
       overlayPosX = pos.x;
@@ -938,32 +1003,38 @@ function startPicker() {
   isPicking = true;
 
   if (!pickerOverlay) {
-    pickerOverlay = document.createElement('div');
-    pickerOverlay.style.position = 'fixed';
-    pickerOverlay.style.zIndex = '2147483647';
-    pickerOverlay.style.backgroundColor = '#1e293b';
-    pickerOverlay.style.color = '#f8fafc';
-    pickerOverlay.style.padding = '8px 12px';
-    pickerOverlay.style.borderRadius = '6px';
-    pickerOverlay.style.fontSize = '12px';
-    pickerOverlay.style.fontFamily = 'monospace';
-    pickerOverlay.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-    pickerOverlay.style.pointerEvents = 'none';
-    pickerOverlay.style.border = '1px solid #3b82f6';
-    pickerOverlay.style.whiteSpace = 'pre-wrap';
-    pickerOverlay.style.maxWidth = '300px';
-    pickerOverlay.style.wordBreak = 'break-all';
+    pickerOverlay = createElement(
+      'div',
+      {},
+      {
+        position: 'fixed',
+        zIndex: '2147483647',
+        backgroundColor: '#1e293b',
+        color: '#f8fafc',
+        padding: '8px 12px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        pointerEvents: 'none',
+        border: '1px solid #3b82f6',
+        whiteSpace: 'pre-wrap',
+        maxWidth: '300px',
+        wordBreak: 'break-all',
+      },
+    );
     document.body.appendChild(pickerOverlay);
   }
 
   addClickableHighlights();
 
-  document.addEventListener('mouseover', hoverHandler as any, true);
-  document.addEventListener('click', clickHandler as any, true);
+  document.addEventListener('mouseover', hoverHandler as EventListener, true);
+  document.addEventListener('click', clickHandler as EventListener, true);
 }
 
-browser.runtime.onMessage.addListener((message: any) => {
-  if (message.action === 'startPicking') {
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const msg = message as { action: string };
+  if (msg.action === 'startPicking') {
     startPicker();
   }
 });

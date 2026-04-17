@@ -1,14 +1,3 @@
-import 'jest-webextension-mock';
-
-(global as any).chrome = (global as any).chrome || {
-  runtime: { id: 'test-id' },
-  storage: { local: { get: jest.fn(), set: jest.fn(), onChanged: { addListener: jest.fn() } } },
-};
-
-jest.mock('webextension-polyfill', () => {
-  return (global as any).chrome;
-});
-
 import browser from 'webextension-polyfill';
 
 describe('Integration: Storage to Content Script', () => {
@@ -35,7 +24,7 @@ describe('Integration: Storage to Content Script', () => {
 
     (browser.storage.local.get as jest.Mock).mockResolvedValue(mockState);
 
-    require('./content');
+    await import('./content');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -60,7 +49,7 @@ describe('Integration: Storage to Content Script', () => {
       overlayDomains: { localhost: true },
     });
 
-    require('./content');
+    await import('./content');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const onMessageCallback = (browser.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
@@ -76,7 +65,7 @@ describe('Integration: Storage to Content Script', () => {
   });
 
   it('should toggle clicker state in background script via messages', async () => {
-    require('./background');
+    await import('./background');
     const onMessageCallback = (browser.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
 
     onMessageCallback({ action: 'start' });
@@ -87,7 +76,7 @@ describe('Integration: Storage to Content Script', () => {
   });
 
   it('should toggle clicker state in background script via commands', async () => {
-    require('./background');
+    await import('./background');
     const onCommandCallback = (browser.commands.onCommand.addListener as jest.Mock).mock.calls[0][0];
 
     onCommandCallback('start-clicking');

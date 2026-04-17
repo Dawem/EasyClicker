@@ -13,8 +13,9 @@ browser.commands.onCommand.addListener((command: string) => {
   }
 });
 
-browser.runtime.onMessage.addListener((message: any) => {
-  if (message.action === 'start' || message.action === 'stop') {
-    toggleClickerState(message.action as 'start' | 'stop');
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const msg = message as { action: string };
+  if (msg.action === 'start' || msg.action === 'stop') {
+    toggleClickerState(msg.action as 'start' | 'stop');
   }
 });
