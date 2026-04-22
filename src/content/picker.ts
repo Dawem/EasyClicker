@@ -21,6 +21,16 @@ export function addClickableHighlights() {
   allEls.forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
 
+    if (el.hasAttribute('disabled') || (el as HTMLButtonElement).disabled === true) {
+      el.setAttribute('data-ec-was-disabled', 'true');
+      el.removeAttribute('disabled');
+      if ('disabled' in el) {
+        try {
+          (el as HTMLButtonElement).disabled = false;
+        } catch (_e) {}
+      }
+    }
+
     let isClickable = false;
     const tag = el.tagName.toLowerCase();
 
@@ -56,6 +66,17 @@ export function removeClickableHighlights() {
     } catch (_e) {}
   });
   state.highlightedClickables = [];
+
+  const disabledEls = document.querySelectorAll('[data-ec-was-disabled="true"]');
+  disabledEls.forEach((el) => {
+    el.setAttribute('disabled', 'disabled');
+    el.removeAttribute('data-ec-was-disabled');
+    if ('disabled' in el) {
+      try {
+        (el as HTMLButtonElement).disabled = true;
+      } catch (_e) {}
+    }
+  });
 
   const style = document.getElementById('ec-clickable-styles');
   if (style) style.remove();
