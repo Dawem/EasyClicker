@@ -3,6 +3,97 @@ import { state } from './state';
 import { matchPatternToRegExp } from '../utils';
 import { ClickItem, StorageData } from '../types';
 
+class WorkerTimer {
+  private worker: Worker | null = null;
+  private callbacks = new Map<number, () => void>();
+  private counter = 0;
+
+  constructor() {
+    try {
+      const blob = new Blob(
+        [
+          `
+        let intervals = {};
+        let timeouts = {};
+        self.onmessage = function(e) {
+          const data = e.data;
+          if (data.type === 'setInterval') {
+            intervals[data.id] = setInterval(() => {
+              self.postMessage({ id: data.id });
+            }, data.ms);
+          } else if (data.type === 'clearInterval') {
+            clearInterval(intervals[data.id]);
+            delete intervals[data.id];
+          } else if (data.type === 'setTimeout') {
+            timeouts[data.id] = setTimeout(() => {
+              self.postMessage({ id: data.id });
+              delete timeouts[data.id];
+            }, data.ms);
+          } else if (data.type === 'clearTimeout') {
+            clearTimeout(timeouts[data.id]);
+            delete timeouts[data.id];
+          }
+        };
+      `,
+        ],
+        { type: 'application/javascript' },
+      );
+      this.worker = new Worker(URL.createObjectURL(blob));
+      this.worker.onmessage = (e) => {
+        const cb = this.callbacks.get(e.data.id);
+        if (cb) cb();
+      };
+    } catch (_e) {
+      this.worker = null;
+    }
+  }
+
+  setInterval(cb: () => void, ms: number): number {
+    const id = ++this.counter;
+    if (this.worker) {
+      this.callbacks.set(id, cb);
+      this.worker.postMessage({ type: 'setInterval', id, ms });
+      return id;
+    } else {
+      return window.setInterval(cb, ms);
+    }
+  }
+
+  clearInterval(id: number): void {
+    if (this.worker) {
+      this.callbacks.delete(id);
+      this.worker.postMessage({ type: 'clearInterval', id });
+    } else {
+      window.clearInterval(id);
+    }
+  }
+
+  setTimeout(cb: () => void, ms: number): number {
+    const id = ++this.counter;
+    if (this.worker) {
+      this.callbacks.set(id, () => {
+        this.callbacks.delete(id);
+        cb();
+      });
+      this.worker.postMessage({ type: 'setTimeout', id, ms });
+      return id;
+    } else {
+      return window.setTimeout(cb, ms);
+    }
+  }
+
+  clearTimeout(id: number): void {
+    if (this.worker) {
+      this.callbacks.delete(id);
+      this.worker.postMessage({ type: 'clearTimeout', id });
+    } else {
+      window.clearTimeout(id);
+    }
+  }
+}
+
+const timer = new WorkerTimer();
+
 export function clickElement(item: ClickItem): void {
   const finalSelector = item.type === 'any' ? item.selector : item.type + (item.selector || '');
   if (!finalSelector) return;
@@ -73,7 +164,7 @@ export function startClicker() {
           const itemIntervalMs =
             item.interval && !isNaN(parseFloat(item.interval)) ? parseFloat(item.interval) * 1000 : globalIntervalMs;
 
-          const id = window.setInterval(() => processItem(item), itemIntervalMs);
+          const id = timer.setInterval(() => processItem(item), itemIntervalMs);
           state.itemIntervalIds.push(id);
         }
       });
@@ -93,7 +184,7 @@ export function startClicker() {
 
             await new Promise<void>((resolve) => {
               state.currentSequenceResolve = resolve;
-              state.currentSequenceTimer = window.setTimeout(resolve, itemIntervalMs);
+              state.currentSequenceTimer = timer.setTimeout(resolve, itemIntervalMs);
             });
             if (state.currentSequenceResolve) state.currentSequenceResolve = null;
           }
@@ -101,7 +192,7 @@ export function startClicker() {
         if (!processedAny) {
           await new Promise<void>((resolve) => {
             state.currentSequenceResolve = resolve;
-            state.currentSequenceTimer = window.setTimeout(resolve, 1000);
+            state.currentSequenceTimer = timer.setTimeout(resolve, 1000);
           });
           if (state.currentSequenceResolve) state.currentSequenceResolve = null;
         }
@@ -115,14 +206,14 @@ export function stopClicker() {
   state.sequenceStopFlag = true;
   state.sequenceId++;
   if (state.currentSequenceTimer) {
-    clearTimeout(state.currentSequenceTimer);
+    timer.clearTimeout(state.currentSequenceTimer);
     state.currentSequenceTimer = null;
   }
   if (state.currentSequenceResolve) {
     state.currentSequenceResolve();
     state.currentSequenceResolve = null;
   }
-  state.itemIntervalIds.forEach((id) => clearInterval(id));
+  state.itemIntervalIds.forEach((id) => timer.clearInterval(id));
   state.itemIntervalIds = [];
   browser.storage.local.set({ activeSequenceItemId: null });
 }

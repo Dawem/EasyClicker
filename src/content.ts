@@ -133,7 +133,7 @@ browser.storage.local
       }
     } else {
       if (res.isRunning) {
-        browser.storage.local.set({ isRunning: false });
+        startClicker();
       }
     }
 
