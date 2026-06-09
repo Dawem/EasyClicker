@@ -34,7 +34,8 @@ Each element you add can be customized independently to perform complex routines
   - `First`: Clicks only the very first matched element in the DOM.
   - `Last`: Clicks only the last matched element.
   - `All`: Simultaneously clicks every single element that matches.
-- **Interval**: Assign a specific timer (e.g., 500ms) for this element. If left blank, it defaults to the global interval setting at the top of the interface.
+  - `Nth Option`: Clicks the specific matched element at the 1-based index (whole number) provided by you (e.g., `1` for the first element, `2` for the second).
+- **Interval**: Assign a specific timer (e.g., 5.0s) for this element. If left blank, it defaults to the global interval setting at the top of the interface.
 
 ### 3. Run Modes
 
@@ -49,9 +50,9 @@ When you have built the perfect click routine, you can save it to load seamlessl
 
 1. **Creating & Updating Presets:**
    - Set up your elements, intervals, and chosen Run Mode.
-   - Select the `+` icon on the dashboard to create a new empty Preset and assign it a name.
-   - The current workspace and settings are immediately captured and saved.
-   - To update an existing workflow, make your tweaks and click the **Save** button under the dropdown.
+   - Select the `+` icon on the dashboard to create a new Preset. Enter a name and an optional domain pattern (e.g., `*://*.example.com/*`).
+   - If domain filtering is enabled ("Show current tab only"), the dropdown list filters presets to only show workflows matching the active tab's domain.
+   - If a loaded preset does not have a domain match pattern, the extension automatically attempts to fill it based on its items' patterns, or prompts you to specify one.
    - Select a previously created workflow and hit **Load** to instantly swap everything out.
 2. **Exporting & Importing Settings:**
    - Click the **Export** options to serialize your active preset, or all presets, into formatted JSON files for backup or sharing.
@@ -80,7 +81,8 @@ Easily manage the autoflow with global system shortcuts:
 - **Multiple Elements** - Add any number of click targets, each with independent settings.
 - **URL Pattern Filtering** - Restrict a rule to specific domains or URL patterns using match syntax.
 - **Text Matching** - Narrow down which elements are clicked by requiring they contain specific text.
-- **Match Mode** - Choose whether to click the first, last, or all elements matching a selector.
+- **Match Mode** - Choose whether to click the first, last, all, or Nth matching element.
+- **Tab Suspend Prevention** - Automatically disables auto-discarding on the active tab while Easy Clicker is running (Chromium-based browsers only), keeping it alive in the background.
 - **Per-Element Interval** - Set a custom click interval per element, or fall back to the global interval.
 - **Keyboard Shortcuts** - Keep the extension tucked away but fully functional from anywhere in the browser.
 - **Import & Export Data** - Safely back up profiles as local JSON configurations or quickly deploy rules to other devices.
@@ -94,22 +96,28 @@ Easily manage the autoflow with global system shortcuts:
 
 ## Building the Extension
 
-This project includes a Python build script that generates both Chrome (`.crx`) and Firefox (`.xpi`) extensions.
+This project includes a Python build script that compiles TypeScript files using `esbuild` and packages Chrome (`.crx`) and Firefox (`.xpi`) extensions.
 It automatically handles manifest differences between the browsers.
 
 ### Requirements
 
-- Python 3.x
+- Node.js & npm (for package dependencies and TypeScript compilation)
+- Python 3.x (for running the packaging script)
 
 ### Build Steps
 
 1. Open a terminal or command prompt in the project root directory.
-2. Run the build script:
+2. Install dependencies:
    ```bash
-   python build.py
+   npm install
    ```
-3. The compiled extensions will be placed in the `dist` folder:
+3. Run the build command:
+   ```bash
+   npm run build
+   ```
+   *(Alternative command: `python build.py`)*
+4. The compiled extensions will be placed in the `dist` folder:
    - `dist/easy-clicker.xpi` (Firefox)
    - `dist/easy-clicker.crx` (Chrome / Edge)
 
-This also generates folders in the dist folder with the source code specifically for each browser. These can be loaded as unpacked extensions in the respective browsers for development purposes.
+This also generates folders in the `dist` folder with the source code specifically for each browser. These can be loaded as unpacked extensions in the respective browsers for development purposes.
