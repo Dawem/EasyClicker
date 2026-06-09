@@ -35,6 +35,7 @@ export const importPresetBtn = document.getElementById('importPresetBtn') as HTM
 
 export const presetPromptDiv = document.getElementById('presetPromptDiv') as HTMLElement;
 export const presetNameInput = document.getElementById('presetNameInput') as HTMLInputElement;
+export const presetMatchPatternInput = document.getElementById('presetMatchPatternInput') as HTMLInputElement;
 export const presetConfirmBtn = document.getElementById('presetConfirmBtn') as HTMLButtonElement;
 export const presetCancelBtn = document.getElementById('presetCancelBtn') as HTMLButtonElement;
 
@@ -44,3 +45,7 @@ export const mainView = document.getElementById('mainView') as HTMLElement;
 export const settingsBackBtn = document.getElementById('settingsBackBtn') as HTMLButtonElement;
 
 export const pickBtn = document.getElementById('pickBtn') as HTMLButtonElement;
+
+export const nthOptionContainer = document.getElementById('nthOptionContainer') as HTMLElement;
+export const nthIndexInput = document.getElementById('nthIndex') as HTMLInputElement;
+export const nthIndexError = document.getElementById('nthIndexError') as HTMLElement;

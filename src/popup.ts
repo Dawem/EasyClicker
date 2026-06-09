@@ -32,6 +32,7 @@ import {
   importPresetBtn,
   presetPromptDiv,
   presetNameInput,
+  presetMatchPatternInput,
   presetConfirmBtn,
   presetCancelBtn,
   settingsBtn,
@@ -39,10 +40,26 @@ import {
   mainView,
   settingsBackBtn,
   pickBtn,
+  nthOptionContainer,
+  nthIndexInput,
+  nthIndexError,
 } from './popup/dom';
 import browser from 'webextension-polyfill';
 import { ClickItem, DraftItem, Preset, StorageData } from './types';
 import { generateConciseTitle, getApexDomain, matchPatternToRegExp, createElement } from './utils';
+
+const activeTabPromise = browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+  if (tabs.length > 0 && tabs[0].url) {
+    state.currentTabUrl = tabs[0].url;
+    try {
+      const url = new URL(tabs[0].url);
+      if (url.hostname) {
+        const apexDomain = getApexDomain(url.hostname);
+        state.defaultMatchPattern = `*://*.${apexDomain}/*`;
+      }
+    } catch (_e) {}
+  }
+});
 
 function updateProgressBars() {
   if (!state.globalIsRunning) return;
@@ -91,25 +108,6 @@ function updateProgressBars() {
   state.rafId = requestAnimationFrame(updateProgressBars);
 }
 
-function initTabContext() {
-  browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-    if (tabs.length > 0 && tabs[0].url) {
-      state.currentTabUrl = tabs[0].url;
-      try {
-        const url = new URL(tabs[0].url);
-        if (url.hostname) {
-          const apexDomain = getApexDomain(url.hostname);
-          state.defaultMatchPattern = `*://*.${apexDomain}/*`;
-          if (!matchPatternInput.value && !editIdInput.value) {
-            matchPatternInput.value = state.defaultMatchPattern;
-          }
-        }
-      } catch (_e) {}
-    }
-    renderList();
-  });
-}
-
 const dashboardView = document.getElementById('dashboardView') as HTMLElement;
 
 function showView(viewName: 'main' | 'form' | 'settings') {
@@ -141,6 +139,9 @@ function closeForm() {
   itemIntervalInput.value = '';
   elementTypeObj.value = 'any';
   matchTypeObj.value = 'first';
+  nthOptionContainer.style.display = 'none';
+  nthIndexInput.value = '';
+  nthIndexError.style.display = 'none';
   toggleSelectorPlaceholder();
   selectorError.style.display = 'none';
 }
@@ -159,6 +160,7 @@ pickBtn.addEventListener('click', () => {
         matchPattern: matchPatternInput.value,
         interval: itemIntervalInput.value,
         editId: editIdInput.value,
+        nthIndex: matchTypeObj.value === 'nth' ? parseInt(nthIndexInput.value, 10) || 1 : undefined,
       },
     })
     .then(() => {
@@ -230,7 +232,7 @@ function createListItem(item: ClickItem): HTMLElement {
 
   const matchBadge = createElement('span', {
     className: 'match-badge',
-    textContent: item.matchType || 'first',
+    textContent: item.matchType === 'nth' ? `nth (${item.nthIndex || 1})` : item.matchType || 'first',
   });
   selDiv.appendChild(matchBadge);
   info.appendChild(selDiv);
@@ -253,6 +255,13 @@ function createListItem(item: ClickItem): HTMLElement {
         openForm();
         elementTypeObj.value = item.type || 'any';
         matchTypeObj.value = item.matchType || 'first';
+        if (item.matchType === 'nth') {
+          nthOptionContainer.style.display = 'block';
+          nthIndexInput.value = item.nthIndex ? item.nthIndex.toString() : '1';
+        } else {
+          nthOptionContainer.style.display = 'none';
+          nthIndexInput.value = '';
+        }
         selectorInput.value = item.selector || '';
         customNameInput.value = item.customName || '';
         targetTextInput.value = item.targetText || '';
@@ -471,6 +480,38 @@ function loadPreset(_id: string) {
   }
 }
 
+function checkAndPromptMissingDomain(): boolean {
+  if (!state.currentTabUrl) return false;
+
+  let updatedAny = false;
+  state.presets.forEach((p) => {
+    if (!p.matchPattern || p.matchPattern.trim() === '') {
+      const itemWithPattern = p.items.find((item) => item.matchPattern && item.matchPattern.trim() !== '');
+      if (itemWithPattern) {
+        p.matchPattern = itemWithPattern.matchPattern;
+        updatedAny = true;
+      }
+    }
+  });
+
+  if (updatedAny) {
+    savePresets();
+  }
+
+  const missing = state.presets.find((p) => !p.matchPattern || p.matchPattern.trim() === '');
+  if (missing) {
+    state.isRenaming = true;
+    state.currentPresetId = missing.id;
+    presetPromptDiv.style.display = 'flex';
+    presetNameInput.value = missing.name;
+    presetMatchPatternInput.value = state.defaultMatchPattern || '';
+    presetConfirmBtn.textContent = 'Set Domain';
+    presetNameInput.focus();
+    return true;
+  }
+  return false;
+}
+
 function renderPresets() {
   if (state.presets.length === 0) {
     state.presets = [
@@ -479,6 +520,7 @@ function renderPresets() {
         name: 'Default',
         items: state.items.length > 0 ? JSON.parse(JSON.stringify(state.items)) : [],
         runMode: runModeSelect.value || 'sequence',
+        matchPattern: state.defaultMatchPattern || '',
       },
     ];
     state.currentPresetId = 'default_preset';
@@ -491,7 +533,27 @@ function renderPresets() {
     state.currentPresetId = state.presets[0].id;
   }
 
-  state.presets.forEach((p) => {
+  const filterCurrent = filterDomainCheckbox.checked;
+  const renderablePresets = state.presets.filter((p) => {
+    if (!filterCurrent || !state.currentTabUrl) return true;
+    if (!p.matchPattern) return true;
+    try {
+      const regex = matchPatternToRegExp(p.matchPattern);
+      return regex.test(state.currentTabUrl);
+    } catch (_e) {
+      return false;
+    }
+  });
+
+  let activePresetObj = renderablePresets.find((p) => p.id === state.currentPresetId);
+  if (!activePresetObj && renderablePresets.length > 0) {
+    state.currentPresetId = renderablePresets[0].id;
+    activePresetObj = renderablePresets[0];
+    savePresets();
+    loadPreset(state.currentPresetId);
+  }
+
+  renderablePresets.forEach((p) => {
     const opt = createElement('option', {
       value: p.id,
       textContent: p.name,
@@ -503,7 +565,11 @@ function renderPresets() {
   presetSelectDashboard.value = state.currentPresetId;
 
   presetActionsBlock.style.display = 'flex';
-  presetPromptDiv.style.display = 'none';
+
+  const hasPrompt = checkAndPromptMissingDomain();
+  if (!hasPrompt) {
+    presetPromptDiv.style.display = 'none';
+  }
 }
 
 settingsBtn.addEventListener('click', () => {
@@ -597,6 +663,7 @@ newPresetBtn.addEventListener('click', () => {
   state.isRenaming = false;
   presetPromptDiv.style.display = 'flex';
   presetNameInput.value = '';
+  presetMatchPatternInput.value = state.defaultMatchPattern;
   presetConfirmBtn.textContent = 'Create';
   presetNameInput.focus();
 });
@@ -607,14 +674,23 @@ renamePresetBtn.addEventListener('click', () => {
     state.isRenaming = true;
     presetPromptDiv.style.display = 'flex';
     presetNameInput.value = p.name;
+    presetMatchPatternInput.value = p.matchPattern || '';
     presetConfirmBtn.textContent = 'Rename';
     presetNameInput.focus();
   }
 });
 
 presetCancelBtn.addEventListener('click', () => {
+  const missing = state.presets.find((p) => !p.matchPattern || p.matchPattern.trim() === '');
+  if (missing) {
+    missing.matchPattern = state.defaultMatchPattern || '*://*/*';
+    savePresets();
+  }
   presetPromptDiv.style.display = 'none';
   presetNameInput.value = '';
+  presetMatchPatternInput.value = '';
+  state.isRenaming = false;
+  renderPresets();
 });
 
 presetNameInput.addEventListener('keydown', (e) => {
@@ -622,12 +698,19 @@ presetNameInput.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') presetCancelBtn.click();
 });
 
+presetMatchPatternInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') presetConfirmBtn.click();
+  if (e.key === 'Escape') presetCancelBtn.click();
+});
+
 presetConfirmBtn.addEventListener('click', () => {
   const name = presetNameInput.value;
+  const matchPattern = presetMatchPatternInput.value.trim();
   if (name && name.trim()) {
     const p = getCurrentPreset();
     if (state.isRenaming && p) {
       p.name = name.trim();
+      p.matchPattern = matchPattern;
       savePresets();
       renderPresets();
     } else {
@@ -638,6 +721,7 @@ presetConfirmBtn.addEventListener('click', () => {
         name: name.trim(),
         items: [],
         runMode: runModeSelect.value,
+        matchPattern,
       });
       state.currentPresetId = id;
       saveItems();
@@ -647,6 +731,7 @@ presetConfirmBtn.addEventListener('click', () => {
     }
     presetPromptDiv.style.display = 'none';
     presetNameInput.value = '';
+    presetMatchPatternInput.value = '';
     state.isRenaming = false;
   }
 });
@@ -707,6 +792,15 @@ elementTypeObj.addEventListener('change', () => {
   selectorError.style.display = 'none';
 });
 
+matchTypeObj.addEventListener('change', () => {
+  if (matchTypeObj.value === 'nth') {
+    nthOptionContainer.style.display = 'block';
+  } else {
+    nthOptionContainer.style.display = 'none';
+    nthIndexError.style.display = 'none';
+  }
+});
+
 addUpdateBtn.addEventListener('click', () => {
   const type = elementTypeObj.value;
   const match = matchTypeObj.value;
@@ -714,7 +808,10 @@ addUpdateBtn.addEventListener('click', () => {
   const cname = customNameInput.value.trim();
   const txt = targetTextInput.value.trim();
   const pattern = matchPatternInput.value.trim();
-  const spd = itemIntervalInput.value.trim();
+  let spd = itemIntervalInput.value.trim();
+  if (spd.startsWith('.')) {
+    spd = '0' + spd;
+  }
 
   if (type === 'any' && !sel) {
     selectorError.style.display = 'block';
@@ -722,12 +819,25 @@ addUpdateBtn.addEventListener('click', () => {
   }
   selectorError.style.display = 'none';
 
+  let nthVal: number | undefined = undefined;
+  if (match === 'nth') {
+    const rawNth = nthIndexInput.value.trim();
+    const parsed = parseInt(rawNth, 10);
+    if (isNaN(parsed) || parsed <= 0 || parsed.toString() !== rawNth) {
+      nthIndexError.style.display = 'block';
+      return;
+    }
+    nthVal = parsed;
+  }
+  nthIndexError.style.display = 'none';
+
   const editId = editIdInput.value;
   if (editId) {
     const item = state.items.find((i) => i.id == editId);
     if (item) {
       item.type = type;
       item.matchType = match;
+      item.nthIndex = nthVal;
       item.selector = sel;
       item.customName = cname;
       item.targetText = txt;
@@ -739,6 +849,7 @@ addUpdateBtn.addEventListener('click', () => {
       id: Date.now().toString(),
       type: type,
       matchType: match,
+      nthIndex: nthVal,
       selector: sel,
       customName: cname,
       targetText: txt,
@@ -766,10 +877,38 @@ function updateStatus(running: boolean) {
 filterDomainCheckbox.addEventListener('change', () => {
   browser.storage.local.set({ filterDomain: filterDomainCheckbox.checked });
   renderList();
+  renderPresets();
 });
 
 intervalInput.addEventListener('input', () => {
-  browser.storage.local.set({ interval: intervalInput.value });
+  let val = intervalInput.value.trim();
+  if (val.startsWith('.')) {
+    val = '0' + val;
+  }
+  if (val) {
+    browser.storage.local.set({ interval: val });
+  }
+});
+
+intervalInput.addEventListener('blur', () => {
+  let val = intervalInput.value.trim();
+  if (val.startsWith('.')) {
+    val = '0' + val;
+    intervalInput.value = val;
+  }
+  if (!val || parseFloat(val) <= 0 || isNaN(parseFloat(val))) {
+    intervalInput.value = '1';
+    browser.storage.local.set({ interval: '1' });
+  } else {
+    browser.storage.local.set({ interval: val });
+  }
+});
+
+itemIntervalInput.addEventListener('blur', () => {
+  const val = itemIntervalInput.value.trim();
+  if (val.startsWith('.')) {
+    itemIntervalInput.value = '0' + val;
+  }
 });
 
 autoStartCheckbox.addEventListener('change', () => {
@@ -795,8 +934,12 @@ openOverlayBtn.addEventListener('click', () => {
 
 browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown; oldValue?: unknown }>) => {
   if (changes.interval && changes.interval.newValue) {
-    if (changes.interval.newValue !== intervalInput.value) {
-      state.globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
+    let val = changes.interval.newValue as string;
+    if (val.startsWith('.')) {
+      val = '0' + val;
+    }
+    if (val !== intervalInput.value) {
+      state.globalInterval = parseFloat(val) || 1;
       renderList();
     }
   }
@@ -875,6 +1018,20 @@ browser.storage.local
       state.currentPresetId = res.currentPresetId as string;
     }
 
+    let updatedAny = false;
+    state.presets.forEach((p) => {
+      if (!p.matchPattern || p.matchPattern.trim() === '') {
+        const itemWithPattern = p.items.find((item) => item.matchPattern && item.matchPattern.trim() !== '');
+        if (itemWithPattern) {
+          p.matchPattern = itemWithPattern.matchPattern;
+          updatedAny = true;
+        }
+      }
+    });
+    if (updatedAny) {
+      savePresets();
+    }
+
     if (state.presets.length === 0) {
       state.presets = [
         {
@@ -891,8 +1048,16 @@ browser.storage.local
     renderPresets();
 
     if (res.interval) {
-      intervalInput.value = res.interval as string;
-      state.globalInterval = parseFloat(res.interval as string) || 1.5;
+      let val = res.interval as string;
+      if (val.startsWith('.')) {
+        val = '0' + val;
+      }
+      intervalInput.value = val;
+      state.globalInterval = parseFloat(val) || 1;
+    } else {
+      intervalInput.value = '1';
+      state.globalInterval = 1;
+      browser.storage.local.set({ interval: '1' });
     }
 
     if (res.autoStart !== undefined) {
@@ -935,6 +1100,13 @@ browser.storage.local
 
       if (res.draftItem) {
         matchTypeObj.value = res.draftItem.matchType || 'first';
+        if (res.draftItem.matchType === 'nth') {
+          nthOptionContainer.style.display = 'block';
+          nthIndexInput.value = res.draftItem.nthIndex ? res.draftItem.nthIndex.toString() : '1';
+        } else {
+          nthOptionContainer.style.display = 'none';
+          nthIndexInput.value = '';
+        }
         customNameInput.value = res.draftItem.customName || '';
         targetTextInput.value = res.draftItem.targetText || '';
         matchPatternInput.value = res.draftItem.matchPattern || '';
@@ -960,6 +1132,13 @@ browser.storage.local
       state.items = (res.items as ClickItem[]).map((item) => {
         if (!item.type) item.type = 'any';
         if (!item.matchType) item.matchType = 'first';
+        if (item.matchType === 'nth' && (item.nthIndex === undefined || isNaN(item.nthIndex))) {
+          item.nthIndex = 1;
+        }
+
+        if (item.interval && item.interval.startsWith('.')) {
+          item.interval = '0' + item.interval;
+        }
 
         const legacy = item as ClickItem & { domainRegex?: string };
         if (legacy.domainRegex && !item.matchPattern) {
@@ -971,8 +1150,20 @@ browser.storage.local
         return item as ClickItem;
       });
     }
-    renderList();
-    initTabContext();
+    activeTabPromise.then(() => {
+      if (!matchPatternInput.value && !editIdInput.value && state.defaultMatchPattern) {
+        matchPatternInput.value = state.defaultMatchPattern;
+      }
+      if (state.presets.length > 0 && state.defaultMatchPattern) {
+        const defPreset = state.presets.find((p) => p.id === 'default_preset');
+        if (defPreset && (!defPreset.matchPattern || defPreset.matchPattern.trim() === '')) {
+          defPreset.matchPattern = state.defaultMatchPattern;
+          savePresets();
+        }
+      }
+      renderList();
+      renderPresets();
+    });
   });
 
 toggleStartStopBtn.addEventListener('click', () => {

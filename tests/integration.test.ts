@@ -1,4 +1,5 @@
 import browser from 'webextension-polyfill';
+import { ClickItem } from '../src/types';
 
 describe('Integration: Storage to Content Script', () => {
   beforeEach(() => {
@@ -14,7 +15,7 @@ describe('Integration: Storage to Content Script', () => {
       overlayDomains: { localhost: true },
       presets: [],
       currentPresetId: 'default',
-      interval: '1.5',
+      interval: '1',
       startTime: Date.now(),
       runMode: 'sequence',
       activeSequenceItemId: null,
@@ -84,5 +85,78 @@ describe('Integration: Storage to Content Script', () => {
 
     onCommandCallback('stop-clicking');
     expect(browser.storage.local.set).toHaveBeenCalledWith(expect.objectContaining({ isRunning: false }));
+  });
+});
+
+describe('runner: clickElement with matchType nth', () => {
+  let clickElement: (item: ClickItem) => void;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.resetModules();
+    const runner = await import('../src/content/runner');
+    clickElement = runner.clickElement;
+  });
+
+  it('should click the nth element matching the selector', () => {
+    document.body.innerHTML = `
+      <div>
+        <button class="target">Button 1</button>
+        <button class="target">Button 2</button>
+        <button class="target">Button 3</button>
+      </div>
+    `;
+
+    const buttons = document.querySelectorAll('.target');
+    const clicks = [0, 0, 0];
+    buttons.forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        clicks[idx]++;
+      });
+    });
+
+    const item = {
+      id: '1',
+      type: 'any',
+      matchType: 'nth',
+      nthIndex: 2,
+      selector: '.target',
+      matchPattern: '.*',
+      enabled: true,
+    };
+
+    clickElement(item);
+
+    expect(clicks).toEqual([0, 1, 0]);
+  });
+
+  it('should fallback to clicking the first element if nthIndex is missing or invalid', () => {
+    document.body.innerHTML = `
+      <div>
+        <button class="target">Button 1</button>
+        <button class="target">Button 2</button>
+      </div>
+    `;
+
+    const buttons = document.querySelectorAll('.target');
+    const clicks = [0, 0];
+    buttons.forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        clicks[idx]++;
+      });
+    });
+
+    const item = {
+      id: '1',
+      type: 'any',
+      matchType: 'nth',
+      selector: '.target',
+      matchPattern: '.*',
+      enabled: true,
+    };
+
+    clickElement(item);
+
+    expect(clicks).toEqual([1, 0]);
   });
 });

@@ -11,7 +11,7 @@ export const state = {
 
   rafId: null as number | null,
   globalIsRunning: false,
-  globalInterval: 1.5,
+  globalInterval: 1,
   globalStartTime: 0,
   runMode: 'sequence',
 

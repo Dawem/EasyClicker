@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { StorageData } from './types';
+import { StorageData, ClickItem } from './types';
 
 const fileInput = document.getElementById('fileInput') as HTMLInputElement;
 const statusDiv = document.getElementById('status') as HTMLElement;
@@ -27,10 +27,21 @@ fileInput.addEventListener('change', (e: Event) => {
     try {
       const parsed = JSON.parse(evt.target?.result as string);
       const res = (await browser.storage.local.get(['presets', 'items'])) as Partial<StorageData>;
-      const presets = res.presets || [];
+      let presets = res.presets || [];
+      const hasOnlyEmptyDefault =
+        presets.length === 1 && presets[0].name === 'Default' && (!presets[0].items || presets[0].items.length === 0);
+
+      if (hasOnlyEmptyDefault) {
+        presets = [];
+      }
 
       if (importType === 'single') {
         if (parsed && parsed.id && parsed.name && Array.isArray(parsed.items)) {
+          parsed.items.forEach((item: ClickItem) => {
+            if (item.interval && item.interval.startsWith('.')) {
+              item.interval = '0' + item.interval;
+            }
+          });
           parsed.id = Date.now().toString();
           let newName = parsed.name;
           let copyNum = 1;
@@ -61,6 +72,12 @@ fileInput.addEventListener('change', (e: Event) => {
           parsed.forEach((importedPreset, idx) => {
             if (!importedPreset.name || !Array.isArray(importedPreset.items)) return;
 
+            importedPreset.items.forEach((item: ClickItem) => {
+              if (item.interval && item.interval.startsWith('.')) {
+                item.interval = '0' + item.interval;
+              }
+            });
+
             const newId = Date.now().toString() + '_' + idx;
             if (!firstNewId) firstNewId = newId;
 
@@ -78,10 +95,18 @@ fileInput.addEventListener('change', (e: Event) => {
             });
           });
 
-          await browser.storage.local.set({
+          const updateData: Partial<StorageData> = {
             presets: presets,
             isRunning: false,
-          });
+          };
+          if (hasOnlyEmptyDefault && firstNewId) {
+            updateData.currentPresetId = firstNewId;
+            const firstPreset = presets.find((p) => p.id === firstNewId);
+            if (firstPreset) {
+              updateData.items = JSON.parse(JSON.stringify(firstPreset.items));
+            }
+          }
+          await browser.storage.local.set(updateData);
           statusDiv.innerText = `Successfully added ${parsed.length} presets!`;
           statusDiv.style.color = '#4ade80';
           setTimeout(() => window.close(), 1000);

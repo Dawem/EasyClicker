@@ -19,7 +19,7 @@ export const state = {
   currentOverlayItems: [] as ClickItem[],
   isOverlayVisible: false,
   pageOverlayEl: null as HTMLElement | null,
-  globalInterval: 1.5,
+  globalInterval: 1,
   globalStartTime: 0,
   rafId: null as number | null,
   overlayPresets: [] as Preset[],

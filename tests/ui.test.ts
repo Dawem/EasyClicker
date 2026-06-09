@@ -13,7 +13,12 @@ describe('UI Functions', () => {
       <div id="addSection" style="display: none;"></div>
       
       <select id="elementType"><option value="any">Any</option><option value="button">Button</option></select>
-      <select id="matchType"><option value="first">First</option></select>
+      <select id="matchType">
+        <option value="first">First</option>
+        <option value="last">Last</option>
+        <option value="all">All</option>
+        <option value="nth">Nth Option</option>
+      </select>
       <select id="runMode"><option value="sequence">Sequenced</option></select>
       <select id="presetSelect"></select>
       <select id="presetSelectDashboard"></select>
@@ -28,6 +33,12 @@ describe('UI Functions', () => {
       <input type="checkbox" id="autoStart">
       <input type="checkbox" id="filterDomain">
       <input type="text" id="presetNameInput">
+      <input type="text" id="presetMatchPatternInput">
+
+      <div id="nthOptionContainer" style="display: none;">
+        <input type="number" id="nthIndex">
+        <div id="nthIndexError"></div>
+      </div>
 
       <button id="toggleFormBtn"></button>
       <button id="cancelFormBtn"></button>
@@ -64,7 +75,7 @@ describe('UI Functions', () => {
       presets: [{ id: 'default', name: 'Default', items: [] }],
       currentPresetId: 'default',
       isRunning: false,
-      interval: '1.5',
+      interval: '1',
       runMode: 'sequence',
     });
   });
@@ -253,5 +264,36 @@ describe('UI Functions', () => {
     if (bar) {
       expect(bar.style.width).toBeDefined();
     }
+  });
+
+  it('should validate and save nthIndex when matchType is nth', async () => {
+    await import('../src/popup');
+
+    const matchType = document.getElementById('matchType') as HTMLSelectElement;
+    const nthOptionContainer = document.getElementById('nthOptionContainer');
+    const nthIndex = document.getElementById('nthIndex') as HTMLInputElement;
+    const nthIndexError = document.getElementById('nthIndexError');
+    const addUpdateBtn = document.getElementById('addUpdateBtn');
+
+    matchType.value = 'nth';
+    matchType.dispatchEvent(new Event('change'));
+    expect(nthOptionContainer?.style.display).toBe('block');
+
+    (document.getElementById('elementType') as HTMLSelectElement).value = 'any';
+    (document.getElementById('selector') as HTMLInputElement).value = '.nth-item';
+    nthIndex.value = '';
+    addUpdateBtn?.click();
+    expect(nthIndexError?.style.display).toBe('block');
+
+    nthIndex.value = '-5';
+    addUpdateBtn?.click();
+    expect(nthIndexError?.style.display).toBe('block');
+
+    nthIndex.value = '3';
+    addUpdateBtn?.click();
+    expect(nthIndexError?.style.display).toBe('none');
+
+    const elementList = document.getElementById('elementList');
+    expect(elementList?.innerHTML).toContain('nth (3)');
   });
 });

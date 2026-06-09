@@ -99,13 +99,31 @@ def build_firefox():
     xpi_path = os.path.join(DIST_DIR, "easy-clicker.xpi")
     package_zip(FIREFOX_DIR, xpi_path)
 
+def build_source_zip():
+    print("Building source code zip...")
+    zip_path = os.path.join(DIST_DIR, "EasyClickerSource.zip")
+    exclude_dirs = {'compiled', 'coverage', 'node_modules', 'dist'}
+    exclude_files = {'.gitignore', 'package-lock.json'}
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(SRC_DIR):
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in exclude_dirs]
+            
+            for file in files:
+                if file in exclude_files:
+                    continue
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, SRC_DIR)
+                zipf.write(file_path, arcname)
+
 if __name__ == "__main__":
     print("Starting build process...")
     clean_dist()
     # Run npm build
     print("Running npm build (TypeScript compilation)...")
-    subprocess.run("npm run build", shell=True, check=True, cwd=SRC_DIR)
+    subprocess.run("npm run ts:build", shell=True, check=True, cwd=SRC_DIR)
     
     build_chrome()
     build_firefox()
+    build_source_zip()
     print(f"Build complete! Output in: {DIST_DIR}")

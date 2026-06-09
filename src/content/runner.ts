@@ -124,6 +124,11 @@ export function clickElement(item: ClickItem): void {
     (elements[elements.length - 1] as HTMLElement).click();
   } else if (matchType === 'all') {
     elements.forEach((el) => (el as HTMLElement).click());
+  } else if (matchType === 'nth') {
+    const idx = (item.nthIndex !== undefined ? item.nthIndex : 1) - 1;
+    if (idx >= 0 && idx < elements.length) {
+      (elements[idx] as HTMLElement).click();
+    }
   }
 }
 
@@ -154,7 +159,7 @@ export function startClicker() {
     if (mySequenceId !== state.sequenceId) return;
 
     const items = (res.items || []) as ClickItem[];
-    const globalIntervalMs = (parseFloat(res.interval || '1.5') || 1.5) * 1000;
+    const globalIntervalMs = (parseFloat(res.interval || '1') || 1) * 1000;
     const runMode = res.runMode || 'sequence';
     state.currentRunMode = runMode;
 

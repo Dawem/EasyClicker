@@ -1,7 +1,7 @@
 import browser from 'webextension-polyfill';
 import { state } from './state';
 import { canProcessItem } from './runner';
-import { generateConciseTitle, createElement } from '../utils';
+import { generateConciseTitle, createElement, matchPatternToRegExp } from '../utils';
 
 export function enforceOverlayBounds() {
   if (!state.pageOverlayEl) return;
@@ -431,24 +431,46 @@ export function updatePageOverlay() {
     },
   );
 
-  if (state.overlayPresets.length === 0) {
+  const filteredOverlayPresets = state.overlayPresets.filter((p) => {
+    if (!p.matchPattern) return true;
+    try {
+      const regex = matchPatternToRegExp(p.matchPattern);
+      return regex.test(window.location.href);
+    } catch (_e) {
+      return false;
+    }
+  });
+
+  const activeOverlayPreset = filteredOverlayPresets.find((p) => p.id === state.overlayCurrentPresetId);
+  if (!activeOverlayPreset && filteredOverlayPresets.length > 0) {
+    const newPresetId = filteredOverlayPresets[0].id;
+    const p = filteredOverlayPresets[0];
+    browser.storage.local.set({
+      isRunning: false,
+      items: JSON.parse(JSON.stringify(p.items)),
+      currentPresetId: newPresetId,
+    });
+    if (p.runMode) browser.storage.local.set({ runMode: p.runMode });
+    state.overlayCurrentPresetId = newPresetId;
+  }
+
+  if (filteredOverlayPresets.length === 0) {
     const noOpt = createElement('option', {
       value: 'default',
-      innerText: 'No presets saved',
+      innerText: 'No presets for this page',
       disabled: true,
       selected: true,
     });
     overlayPresetSelect.appendChild(noOpt);
   } else {
-    state.overlayPresets.forEach((p) => {
+    filteredOverlayPresets.forEach((p) => {
       const opt = createElement('option', {
         value: p.id,
         innerText: p.name,
       });
       overlayPresetSelect.appendChild(opt);
     });
-    overlayPresetSelect.value =
-      state.overlayCurrentPresetId !== 'default' ? state.overlayCurrentPresetId : state.overlayPresets[0].id;
+    overlayPresetSelect.value = state.overlayCurrentPresetId;
   }
 
   overlayPresetSelect.onchange = () => {

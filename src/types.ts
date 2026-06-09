@@ -8,6 +8,7 @@ export interface ClickItem {
   matchPattern: string;
   interval?: string;
   enabled: boolean;
+  nthIndex?: number;
 }
 
 export interface Preset {
@@ -15,6 +16,7 @@ export interface Preset {
   name: string;
   items: ClickItem[];
   runMode?: string;
+  matchPattern?: string;
 }
 
 export interface StorageData {
@@ -41,4 +43,5 @@ export interface DraftItem {
   matchPattern: string;
   interval: string;
   editId: string;
+  nthIndex?: number;
 }

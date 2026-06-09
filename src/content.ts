@@ -9,7 +9,7 @@ browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unkn
   let needsOverlayUpdate = false;
 
   if (changes.interval && changes.interval.newValue) {
-    state.globalInterval = parseFloat(changes.interval.newValue as string) || 1.5;
+    state.globalInterval = parseFloat(changes.interval.newValue as string) || 1;
   }
   if (changes.startTime && changes.startTime.newValue) {
     state.globalStartTime = changes.startTime.newValue as number;
@@ -103,7 +103,7 @@ browser.storage.local
     state.currentOverlayItems = (res.items || []) as ClickItem[];
     const domains = res.overlayDomains || {};
     state.isOverlayVisible = domains[window.location.hostname] === true;
-    if (res.interval) state.globalInterval = parseFloat(res.interval) || 1.5;
+    if (res.interval) state.globalInterval = parseFloat(res.interval) || 1;
     state.globalStartTime = res.startTime || Date.now();
     state.currentRunMode = res.runMode || 'sequence';
     state.activeSequenceItemId = res.activeSequenceItemId || null;

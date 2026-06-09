@@ -19,3 +19,16 @@ browser.runtime.onMessage.addListener((message: unknown) => {
     toggleClickerState(msg.action as 'start' | 'stop');
   }
 });
+
+browser.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown; oldValue?: unknown }>) => {
+  if (changes.isRunning !== undefined) {
+    const isRunning = changes.isRunning.newValue as boolean;
+    try {
+      browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+        if (tabs.length > 0 && tabs[0].id !== undefined) {
+          browser.tabs.update(tabs[0].id, { autoDiscardable: !isRunning }).catch(() => {});
+        }
+      });
+    } catch (_e) {}
+  }
+});
